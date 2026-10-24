@@ -28,13 +28,15 @@ from app.storage import (  # noqa: E402
 from app.util import utc_now  # noqa: E402
 
 
-def raw(source: str, slug: str, ext: str, title: str, price: int, url: str) -> RawListing:
+def raw(source: str, slug: str, ext: str, title: str, price: int, url: str,
+        image: str = "") -> RawListing:
     return RawListing(
         source=source,
         channel_slug=slug,
         external_id=ext,
         url=url,
         title=title,
+        image=image,
         price_cents=price,
     )
 
@@ -46,10 +48,11 @@ def seed() -> None:
     with Session(engine) as session:
         arcteryx = get_or_create_brand(session, "arcteryx", "Arc'teryx", name_cn="始祖鸟")
         tnf = get_or_create_brand(session, "the-north-face", "The North Face", name_cn="北面")
+        patagonia = get_or_create_brand(session, "patagonia", "Patagonia", name_cn="巴塔哥尼亚")
 
         beta = get_or_create_style(session, arcteryx.id, "27910",
                                    name="Beta LT 夹克", category="硬壳")
-        torrent = get_or_create_style(session, arcteryx.id, "195871510",
+        torrent = get_or_create_style(session, patagonia.id, "195871510",
                                       name="Torrentshell 3L 雨衣", category="雨壳")
         puffer = get_or_create_style(session, tnf.id, "NF0A3VU7",
                                      name="1996 复刻羽绒服", category="羽绒服")
@@ -74,36 +77,55 @@ def seed() -> None:
 
         l1, _ = save_raw_listing(session, raw=raw("jd_union", "jd", "100012345",
                                               "始祖鸟 Arc'teryx Beta LT 夹克 27910 黑色 M", 399800,
-                                              "https://item.jd.com/100012345.html"),
+                                              "https://item.jd.com/100012345.html",
+                                              image="/products/beta_lt.jpg"),
                                  channel_id=jd.id, variant_id=v1.id)
         history(l1.id, 469800, [449800, 429800, 399800])
 
         l2, _ = save_raw_listing(session, raw=raw("tbk", "taobao", "tao-27910",
                                               "Arc'teryx Beta LT 硬壳 黑 M", 389900,
-                                              "https://detail.tmall.com/item.htm?id=1"),
+                                              "https://detail.tmall.com/item.htm?id=1",
+                                              image="/products/beta_lt.jpg"),
                                  channel_id=tb.id, variant_id=v1.id)
         history(l2.id, 459900, [429900, 409900, 389900])
 
         l3, _ = save_raw_listing(session, raw=raw("web_product", "official-us", "27910",
                                               "Arc'teryx Beta LT Jacket - Black, M", 59900,
-                                              "https://arcteryx.com/shop/beta-lt"),
+                                              "https://arcteryx.com/shop/beta-lt",
+                                              image="/products/beta_lt.jpg"),
                                  channel_id=us.id, variant_id=v1.id)
         history(l3.id, 59900, [54900, 49900, 44900])
 
         l4, _ = save_raw_listing(session, raw=raw("jd_union", "jd", "100077001",
                                               "始祖鸟 Torrentshell 3L 雨衣 淤泥绿 L", 289000,
-                                              "https://item.jd.com/100077001.html"),
+                                              "https://item.jd.com/100077001.html",
+                                              image="/products/torrentshell_3l.jpg"),
                                  channel_id=jd.id, variant_id=v2.id)
         history(l4.id, 329000, [309000, 299000, 289000])
 
+        l6, _ = save_raw_listing(session, raw=raw("tbk", "taobao", "tao-195871510",
+                                              "Patagonia Torrentshell 3L 雨衣 淤泥绿 L", 275000,
+                                              "https://detail.tmall.com/item.htm?id=2",
+                                              image="/products/torrentshell_3l.jpg"),
+                                 channel_id=tb.id, variant_id=v2.id)
+        history(l6.id, 299000, [289000, 283000, 275000])
+
         l5, _ = save_raw_listing(session, raw=raw("jd_union", "jd", "100098765",
                                               "北面 1996 复刻 Nuptse 羽绒服 黑 L", 289800,
-                                              "https://item.jd.com/100098765.html"),
+                                              "https://item.jd.com/100098765.html",
+                                              image="/products/puffer_1996.jpg"),
                                  channel_id=jd.id, variant_id=v3.id)
         history(l5.id, 329800, [319800, 299800, 289800])
 
+        l7, _ = save_raw_listing(session, raw=raw("tbk", "taobao", "tao-nf0a3vu7",
+                                              "北面 1996 复刻 Nuptse 羽绒服 黑 L", 279900,
+                                              "https://detail.tmall.com/item.htm?id=3",
+                                              image="/products/puffer_1996.jpg"),
+                                 channel_id=tb.id, variant_id=v3.id)
+        history(l7.id, 319900, [299900, 289900, 279900])
+
         session.commit()
-        print(f"seeded {settings.db_path}: 2 brands, 3 styles, 3 variants, 5 listings")
+        print(f"seeded {settings.db_path}: 3 brands, 3 styles, 3 variants, 7 listings")
 
 
 if __name__ == "__main__":

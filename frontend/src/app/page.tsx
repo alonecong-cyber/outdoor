@@ -6,8 +6,9 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { Sparkline } from "@/components/Sparkline";
+import { ProductImage } from "@/components/ProductImage";
 import { api, type VariantDetail } from "@/lib/api";
-import { money } from "@/lib/format";
+import { channelName, money } from "@/lib/format";
 
 const BRANDS = [
   { slug: "", label: "全部" },
@@ -29,6 +30,7 @@ function bestPrice(d: VariantDetail | undefined) {
     cents: best.price_cents!,
     currency: best.currency,
     history: best.history,
+    image: (d.channels.find((c) => c.image)?.image) ?? "",
   };
 }
 
@@ -99,29 +101,34 @@ export default function HomePage() {
           return (
             <li key={v.id} className={`rise rise-${(i % 5) + 1}`}>
               <Link href={`/variants/${v.id}`} className="card block p-4 transition-colors hover:border-dim">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
+                <div className="flex items-start gap-3.5">
+                  <ProductImage
+                    src={best?.image}
+                    alt={`${v.style_name} ${v.color}`}
+                    className="h-20 w-20 shrink-0 rounded-sm border border-line object-cover sm:h-24 sm:w-24"
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className="micro-label">
                       {v.brand_name} · {v.category || "户外"}
                     </p>
-                    <h2 className="font-display mt-1 text-base font-bold">
+                    <h2 className="font-display mt-1 truncate text-base font-bold">
                       {v.style_name}
                       <span className="num ml-2 text-xs text-dim">#{v.style_number}</span>
                     </h2>
                     <p className="mt-1 text-sm text-dim">
                       {v.color} · {v.size}
                     </p>
-                  </div>
-                  <div className="shrink-0 text-right">
                     {best ? (
-                      <>
+                      <div className="mt-2">
                         <p className="num text-lg font-semibold text-accent">
                           {money(best.cents, best.currency)}
+                          <span className="micro-label ml-2 not-italic">
+                            {channelName(best.channel)}
+                          </span>
                         </p>
-                        <p className="micro-label">{best.channel}</p>
-                      </>
+                      </div>
                     ) : (
-                      <p className="micro-label">无在售快照</p>
+                      <p className="micro-label mt-2">无在售快照</p>
                     )}
                   </div>
                 </div>

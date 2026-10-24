@@ -62,7 +62,9 @@ def collect_and_store(
             )
             if snap is not None:
                 result.new_snapshots += 1
-                result.alerts.extend(evaluate_listing(session, listing, raw.price_cents))
+                result.alerts.extend(
+                    evaluate_listing(session, listing, raw.price_cents, current_ts=snap.ts)
+                )
         except Exception as e:  # noqa: BLE001 - 单条失败记录后继续
             session.rollback()
             result.errors.append(f"{raw.external_id}: {e}")

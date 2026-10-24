@@ -38,18 +38,25 @@ def is_new_low(
     window_days: int = DEFAULT_WINDOW_DAYS,
     min_history_days: int = MIN_HISTORY_DAYS,
     now: datetime | None = None,
+    before: datetime | None = None,
 ) -> bool:
-    """当前价是否为窗口内新低。历史不足 min_history_days 天直接 False。"""
+    """当前价是否为窗口内新低。历史不足 min_history_days 天直接 False。
+
+    before：当前这条快照自身的写入时刻。给了就以它为窗口上界（ts < before），
+    只跟「此前」的价格比；不给则退回 ts < now。采集流程是先写快照再评估，
+    若不传 before，刚写入的当前价会落进比较窗口，min 里含自己，新低永远判不出。
+    """
     now = now or utc_now()
     first_ts = first_snapshot_ts(session, listing_id)
     if first_ts is None or (now - first_ts).days < min_history_days:
         return False
     since = now - timedelta(days=window_days)
+    bound = before if before is not None else now
     prices = session.exec(
         select(PriceSnapshot.price_cents).where(
             PriceSnapshot.listing_id == listing_id,
             PriceSnapshot.ts >= since,
-            PriceSnapshot.ts < now,
+            PriceSnapshot.ts < bound,
         )
     ).all()  # type: ignore[call-overload]
     if not prices:
@@ -107,11 +114,13 @@ def evaluate_listing(
     price_cents: int,
     *,
     now: datetime | None = None,
+    current_ts: datetime | None = None,
 ) -> list[AlertEvent]:
     """对一个 listing 当前价评估所有相关订阅，生成（未去重前的）告警事件。
 
     订阅通过 variant_id 关联；kinds_json 里含 "price_below" 才判目标价，
     含 "new_low" 才判新低（且受历史≥14 天约束）。
+    current_ts：当前这条价格的快照时刻，传给 is_new_low 排除自身（见其 docstring）。
     """
     now = now or utc_now()
     if listing.variant_id is None:
@@ -140,7 +149,9 @@ def evaluate_listing(
                         now=now,
                     )
                 )
-        if "new_low" in kinds and is_new_low(session, listing.id, price_cents, now=now):
+        if "new_low" in kinds and is_new_low(
+            session, listing.id, price_cents, now=now, before=current_ts
+        ):
             if not recent_alert(session, sub.id, "new_low", now=now):
                 events.append(
                     create_alert_event(

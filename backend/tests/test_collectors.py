@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -14,6 +16,7 @@ from app.collectors.web_product import (
     WebProductCollector,
     fetch_product,
     looks_like_block_or_login,
+    parse_jsonld_product,
     parse_product_page,
     robots_allows,
 )
@@ -184,9 +187,22 @@ class TestProductPage:
         assert f["name"].startswith("Arc'teryx Beta LT")
         assert f["sku"] == "27910"
         assert f["color"] == "Black"
+        assert f["image"] == "https://example-retailer.com/img/beta-lt-black.jpg"
         assert f["price"] == 449.25
         assert f["currency"] == "USD"
         assert f["in_stock"]
+
+    def test_jsonld_image_variants(self):
+        # image 字段的常见形态：URL 字符串 / 列表 / ImageObject
+        base = {"@type": "Product", "name": "X", "offers": {"price": "10", "priceCurrency": "USD"}}
+        p1 = parse_jsonld_product([json.dumps({**base, "image": "https://c/1.jpg"})])
+        assert p1["image"] == "https://c/1.jpg"
+        p2 = parse_jsonld_product(
+            [json.dumps({**base, "image": [{"@type": "ImageObject", "url": "https://c/2.jpg"}]})]
+        )
+        assert p2["image"] == "https://c/2.jpg"
+        p3 = parse_jsonld_product([json.dumps(base)])
+        assert p3["image"] == ""
 
     def test_meta_fallback_fixture(self, fixture_path):
         html = fixture_path("product_meta_fallback.html").read_text()
@@ -215,6 +231,7 @@ class TestProductPage:
         assert raw.price_cents == 44925
         assert raw.external_id == "27910"
         assert raw.source == "web_product"
+        assert raw.image == "https://example-retailer.com/img/beta-lt-black.jpg"
 
     def test_fetch_product_blocked_by_robots(self):
         def handler(request: httpx.Request) -> httpx.Response:

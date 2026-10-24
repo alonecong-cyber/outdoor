@@ -187,6 +187,16 @@ def _jsonld_offers(product: dict) -> dict:
     return offers if isinstance(offers, dict) else {}
 
 
+def _jsonld_image(product: dict) -> str:
+    """image 字段形态多样：URL 字符串 / 列表 / ImageObject（含 url）。"""
+    image = product.get("image")
+    if isinstance(image, list):
+        image = image[0] if image else None
+    if isinstance(image, dict):
+        image = image.get("url") or image.get("contentUrl")
+    return str(image) if image else ""
+
+
 def parse_jsonld_product(script_bodies: list[str], *, url: str = "") -> dict:
     """从 JSON-LD script 列表提取 Product 字段。失败抛 ProductParseError。"""
     for body in script_bodies:
@@ -211,6 +221,7 @@ def parse_jsonld_product(script_bodies: list[str], *, url: str = "") -> dict:
             "sku": str(product.get("sku") or product.get("productID") or ""),
             "color": product.get("color") or "",
             "size": "",
+            "image": _jsonld_image(product),
             "price": float(price) if price not in (None, "") else None,
             "currency": currency,
             "in_stock": in_stock,
@@ -224,6 +235,9 @@ def parse_jsonld_product(script_bodies: list[str], *, url: str = "") -> dict:
 OG_TITLE_RE = re.compile(
     r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', re.I
 )
+OG_IMAGE_RE = re.compile(
+    r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', re.I
+)
 META_PRICE_RE = re.compile(
     r'<meta[^>]+(?:property|itemprop)=["\'](?:product:price:amount|price)["\'][^>]+content=["\']([\d.]+)["\']',
     re.I,
@@ -234,6 +248,7 @@ def parse_meta_fallback(html: str, *, url: str = "") -> dict:
     """og:title + product:price:amount 兜底解析。失败抛 ProductParseError。"""
     title_m = OG_TITLE_RE.search(html)
     price_m = META_PRICE_RE.search(html)
+    image_m = OG_IMAGE_RE.search(html)
     if not (title_m and price_m):
         raise ProductParseError("CSS/meta 兜底解析失败")
     return {
@@ -242,6 +257,7 @@ def parse_meta_fallback(html: str, *, url: str = "") -> dict:
         "sku": "",
         "color": "",
         "size": "",
+        "image": image_m.group(1).strip() if image_m else "",
         "price": float(price_m.group(1)),
         "currency": "USD",
         "in_stock": True,
@@ -298,7 +314,7 @@ def fetch_product(
         external_id=fields["sku"] or url,
         url=url,
         title=fields["name"],
-        image="",
+        image=fields.get("image", ""),
         brand_hint=fields["brand"],
         style_number_hint=fields["sku"],
         color_hint=fields["color"],

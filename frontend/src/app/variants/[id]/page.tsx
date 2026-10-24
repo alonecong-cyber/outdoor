@@ -1,10 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
 import { ChannelQuoteCard } from "@/components/ChannelQuoteCard";
+import { ProductImage } from "@/components/ProductImage";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Sparkline } from "@/components/Sparkline";
 import { api, type ChannelQuote } from "@/lib/api";
@@ -126,6 +128,7 @@ export default function VariantPage() {
   }
 
   const v = detail.data;
+  const heroImage = v.channels.find((c) => c.image)?.image;
   const live = v.channels.filter((c) => c.price_cents != null);
   // 跨币种不可直接比：最低徽章只在国内人民币渠道里选，没有再退到外币渠道
   const cnyLive = live.filter((c) => c.currency === "CNY");
@@ -145,18 +148,27 @@ export default function VariantPage() {
     <main>
       <SiteHeader kicker={`#${v.style_number}`} />
 
-      <section className="rise card mb-4 p-5">
-        <p className="micro-label">{v.brand}</p>
-        <h1 className="font-display mt-1 text-2xl font-black tracking-tight">{v.style_name}</h1>
-        <div className="mt-2 flex flex-wrap gap-2 text-sm text-dim">
-          <span className="rounded-sm border border-line px-2 py-0.5">{v.color}</span>
-          <span className="rounded-sm border border-line px-2 py-0.5">尺码 {v.size}</span>
-          {cheapest && (
-            <span className="rounded-sm border border-accent px-2 py-0.5 text-ink">
-              最低 <span className="num text-accent">{money(cheapest.price_cents, cheapest.currency)}</span> ·{" "}
-              {channelName(cheapest.channel)}
-            </span>
-          )}
+      <section className="rise card mb-4 overflow-hidden">
+        {heroImage && (
+          <ProductImage
+            src={heroImage}
+            alt={`${v.style_name} ${v.color}`}
+            className="h-52 w-full object-cover sm:h-64"
+          />
+        )}
+        <div className="p-5">
+          <p className="micro-label">{v.brand}</p>
+          <h1 className="font-display mt-1 text-2xl font-black tracking-tight">{v.style_name}</h1>
+          <div className="mt-2 flex flex-wrap gap-2 text-sm text-dim">
+            <span className="rounded-sm border border-line px-2 py-0.5">{v.color}</span>
+            <span className="rounded-sm border border-line px-2 py-0.5">尺码 {v.size}</span>
+            {cheapest && (
+              <span className="rounded-sm border border-accent px-2 py-0.5 text-ink">
+                最低 <span className="num text-accent">{money(cheapest.price_cents, cheapest.currency)}</span> ·{" "}
+                {channelName(cheapest.channel)}
+              </span>
+            )}
+          </div>
         </div>
       </section>
 
@@ -165,10 +177,16 @@ export default function VariantPage() {
         {v.channels.length === 0 && <p className="text-sm text-dim">该款暂无渠道 listing。</p>}
         {sorted.map((c) => {
           const isMin = cheapest && c.listing_id === cheapest.listing_id;
+          const isCny = c.currency === "CNY";
           return (
             <article key={c.listing_id} className={`card p-4 ${isMin ? "border-accent/70" : ""}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex items-start gap-3">
+                <ProductImage
+                  src={c.image}
+                  alt={c.title || channelName(c.channel)}
+                  className="h-14 w-14 shrink-0 rounded-sm border border-line object-cover"
+                />
+                <div className="min-w-0 flex-1">
                   <h2 className="font-display text-sm font-bold">
                     {channelName(c.channel)}
                     {isMin && <span className="micro-label ml-2 text-accent">当前最低</span>}
@@ -177,7 +195,7 @@ export default function VariantPage() {
                     href={c.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-1 block max-w-64 truncate text-xs text-dim underline-offset-2 hover:text-ink hover:underline"
+                    className="mt-1 block truncate text-xs text-dim underline-offset-2 hover:text-ink hover:underline"
                   >
                     {c.title || c.url}
                   </a>
@@ -194,12 +212,21 @@ export default function VariantPage() {
                   <Sparkline points={c.history} width={280} height={44} />
                 </div>
               )}
-              <ChannelQuoteCard
-                listingId={c.listing_id}
-                channel={channelName(c.channel)}
-                priceCents={c.price_cents}
-                currency={c.currency}
-              />
+              {isCny ? (
+                <ChannelQuoteCard
+                  listingId={c.listing_id}
+                  channel={channelName(c.channel)}
+                  priceCents={c.price_cents}
+                  currency={c.currency}
+                />
+              ) : (
+                <Link
+                  href={`/calculator?tab=overseas&usd=${((c.price_cents ?? 0) / 100).toFixed(2)}`}
+                  className="btn mt-3 w-full border border-line py-2 text-xs text-dim hover:border-dim hover:text-ink"
+                >
+                  外币渠道 · 去海淘到手价计算器 →
+                </Link>
+              )}
             </article>
           );
         })}

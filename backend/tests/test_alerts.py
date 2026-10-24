@@ -52,9 +52,25 @@ class TestIsNewLow:
         # 手算：第一条快照距今 5 天 < 14 天 → 历史太短，不报新低（防促销假低）
         listing = seed.add_listing(seed.jd, external_id="jd-1", price_cents=500000)
         base = utc_now()
-        add_price_snapshot(seed.session, listing_id=listing.id, price_cents=500000,
-                           ts=base - timedelta(days=5))
+        add_price_snapshot(
+            seed.session, listing_id=listing.id, price_cents=500000,
+            ts=base - timedelta(days=5),
+        )
         assert not is_new_low(seed.session, listing.id, 100000, now=base)
+
+    def test_new_low_excludes_snapshot_just_written(self, seed):
+        # 回归：调度器先写快照再评估。不传 before 时，刚写入的当前价落进
+        # ts<now 窗口，min 含自己 → 新低永远 False。传 before=当前快照 ts 才对。
+        listing, base = _listing_with_history(seed, [(20, 500000), (10, 480000)])
+        now = base + timedelta(seconds=1)
+        snap = add_price_snapshot(
+            seed.session, listing_id=listing.id, price_cents=470000, ts=now
+        )
+        assert snap is not None
+        assert not is_new_low(seed.session, listing.id, 470000, now=now + timedelta(seconds=1))
+        assert is_new_low(
+            seed.session, listing.id, 470000, now=now + timedelta(seconds=1), before=snap.ts
+        )
 
 
 class TestEvaluateListing:

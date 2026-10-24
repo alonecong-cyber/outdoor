@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="暂无商品图">
+  <rect width="400" height="400" fill="#10170f"/>
+  <g fill="none" stroke="#243126" stroke-width="1.5">
+    <ellipse cx="200" cy="210" rx="60" ry="72"/>
+    <ellipse cx="200" cy="210" rx="88" ry="104"/>
+    <ellipse cx="200" cy="210" rx="118" ry="138"/>
+  </g>
+  <g transform="translate(200 196)" fill="none" stroke="#8fa294" stroke-width="7"
+     stroke-linejoin="round" stroke-linecap="round">
+    <path d="M-52 -18 L-30 -50 Q0 -66 30 -50 L52 -18 L34 -6 L34 54 L-34 54 L-34 -6 Z"/>
+    <path d="M-30 -50 Q-14 -28 0 -26 Q14 -28 30 -50" stroke-width="5"/>
+  </g>
+  <text x="200" y="330" text-anchor="middle" fill="#8fa294" font-family="monospace"
+        font-size="14" letter-spacing="4">NO IMAGE</text>
+</svg>

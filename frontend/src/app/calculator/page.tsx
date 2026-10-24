@@ -1,17 +1,18 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { api, type FillerResult, type OverseasResult, type QuoteResult } from "@/lib/api";
 import { cny, delta, promoName, usd } from "@/lib/format";
 
-type Tab = "cn" | "overseas" | "filler";
+type Tab = "cn" | "filler" | "overseas";
 const TABS: { id: Tab; label: string }[] = [
   { id: "cn", label: "国内到手价" },
-  { id: "overseas", label: "海淘到手价" },
   { id: "filler", label: "凑单助手" },
+  { id: "overseas", label: "海淘到手价" },
 ];
 
 // ---------- 国内：优惠构造器 ----------
@@ -203,10 +204,10 @@ function CnQuote() {
 
 // ---------- 海淘 ----------
 
-function OverseasQuote() {
+function OverseasQuote({ initialUsd }: { initialUsd?: string }) {
   // 默认值 = PRD 验收样例：$450 25% 折扣 + 10% 码 + 8% 返现 + 7.1 汇率 + ¥220 转运 → 2635.42
   const [form, setForm] = useState({
-    usd_price: "450",
+    usd_price: initialUsd ?? "450",
     discount: "25",
     coupon_code: "10",
     cashback: "8",
@@ -418,8 +419,14 @@ function FillerCalc() {
 
 // ---------- 页面 ----------
 
-export default function CalculatorPage() {
-  const [tab, setTab] = useState<Tab>("cn");
+function CalculatorInner() {
+  // 支持 /calculator?tab=overseas&usd=449 从商品页外币渠道带参跳入
+  const search = useSearchParams();
+  const tabParam = search.get("tab");
+  const usdParam = search.get("usd") ?? undefined;
+  const [tab, setTab] = useState<Tab>(
+    tabParam === "overseas" || tabParam === "filler" ? tabParam : "cn",
+  );
   return (
     <main>
       <SiteHeader kicker="CALC" />
@@ -439,9 +446,17 @@ export default function CalculatorPage() {
       </div>
       <section className="rise rise-2">
         {tab === "cn" && <CnQuote />}
-        {tab === "overseas" && <OverseasQuote />}
+        {tab === "overseas" && <OverseasQuote key={usdParam ?? "default"} initialUsd={usdParam} />}
         {tab === "filler" && <FillerCalc />}
       </section>
     </main>
+  );
+}
+
+export default function CalculatorPage() {
+  return (
+    <Suspense fallback={<p className="micro-label">载入计算器…</p>}>
+      <CalculatorInner />
+    </Suspense>
   );
 }
