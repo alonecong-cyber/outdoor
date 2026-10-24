@@ -23,7 +23,7 @@ export default function DealFeedPage() {
     <section className="feed-hero rise">
       <svg className="hero-landscape" viewBox="0 0 680 260" fill="none" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="m0 260 206-240 90 113 87-85 141 212H0Z" fill="#93ad7a" opacity=".13" /><path d="m125 260 215-240 68 98 82-63 190 205H125Z" fill="#b8c38c" opacity=".15" /><path d="M-20 216 110 155 173 184 339 20 405 119 489 56 700 256M-20 239 110 177 175 205 338 45 402 145 488 80 680 267M-20 260 112 200 179 227 338 71 401 171 488 107 659 279M91 275 180 250 338 97 397 198 489 135 636 285M219 275 339 124 395 223 489 162 615 291M240 287 339 151 393 249 490 190 595 299M268 299 339 178 390 275 491 219 573 307" stroke="#dce7bc" strokeWidth=".7" /><circle cx="540" cy="57" r="22" stroke="#dce7bc" strokeWidth=".7" /><path d="M540 28v11m0 36v11m-29-29h11m36 0h11" stroke="#dce7bc" strokeWidth=".7" /></svg>
       <div><p className="eyebrow">GOOD GEAR. CLEAR PRICES. / 户外装备价格手册</p><h1>装备选得对，<br /><span>下一程走得远。</span></h1><p>看清价格、规格和优惠条件，<br className="sm:hidden" />为每一次出发认真挑选。</p></div>
-      <div className="hero-aside"><span className="field-note">BE READY<br />FOR OUT THERE.</span><p>从一条优惠线索，找到适合自己的装备。</p><Link className="text-link" href="/variants">逛逛装备目录<Icon name="arrow" /></Link></div>
+      <div className="hero-aside"><span className="field-note">BE READY<br />FOR OUT THERE.</span><p>从一条优惠线索，找到适合自己的装备。</p><Link className="btn-primary" href="/variants">逛逛装备目录<Icon name="arrow" /></Link></div>
     </section>
     <StatusStrip />
     <BrowseControls query={query} setQuery={setQuery} brand={brand} setBrand={setBrand} category={category} setCategory={setCategory} />

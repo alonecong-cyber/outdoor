@@ -12,22 +12,32 @@ const KIND_LABEL: Record<string, string> = {
 
 export function PlanPanel({ plan }: { plan: VariantPlan }) {
   const best = plan.best_plan;
+  const lowestPlatform = plan.platforms.length ? Math.min(...plan.platforms.map((p) => p.min_price_cents)) : null;
+  const platforms = [...plan.platforms].sort((a, b) => a.min_price_cents - b.min_price_cents);
   return (
     <div className="space-y-4">
       <p className="notice"><strong>参考口径</strong><br />{plan.note}</p>
       {plan.platforms.length > 1 && (
         <div className="quote-list" aria-label="各平台参考现价">
-          {plan.platforms.map((platform) => (
-            <article className={`quote-card ${platform.channel === best.channel ? "is-best" : ""}`} key={platform.channel}>
-              <div className="quote-head">
-                <div>
-                  <h3>{platform.channel}<span className="badge badge-reported">线报参考</span></h3>
-                  <p className="quote-subtitle">{platform.deal_count} 条线报 · 非当前可买价</p>
+          {platforms.map((platform) => {
+            const isLowest = platform.min_price_cents === lowestPlatform;
+            const width = lowestPlatform ? Math.round((lowestPlatform / platform.min_price_cents) * 100) : 0;
+            return (
+              <article className={`quote-card ${isLowest ? "is-best" : ""}`} key={platform.channel}>
+                <div className="quote-head">
+                  <div>
+                    <h3>{platform.channel}<span className="badge badge-reported">线报参考</span>{isLowest && <span className="badge badge-best">参考最低</span>}</h3>
+                    <p className="quote-subtitle">{platform.deal_count} 条线报 · 非当前可买价</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="quote-main-price">{money(platform.min_price_cents, "CNY")}</span>
+                    {!isLowest && lowestPlatform != null && <span className="quote-delta mt-1 block">较最低 +{money(platform.min_price_cents - lowestPlatform, "CNY")}</span>}
+                  </div>
                 </div>
-                <span className="quote-main-price">{money(platform.min_price_cents, "CNY")}</span>
-              </div>
-            </article>
-          ))}
+                <div className="quote-bar" aria-hidden="true"><span className={isLowest ? "is-lowest" : ""} style={{ width: `${width}%` }} /></div>
+              </article>
+            );
+          })}
         </div>
       )}
       <article className="quote-card is-best">
