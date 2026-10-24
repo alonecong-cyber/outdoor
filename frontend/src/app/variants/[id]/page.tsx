@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { DealCard } from "@/components/DealCard";
 import { Icon } from "@/components/Icon";
+import { PlanPanel } from "@/components/PlanPanel";
 import { PriceHistory } from "@/components/PriceHistory";
 import { ProductImage } from "@/components/ProductImage";
 import { QuoteList } from "@/components/QuoteList";
@@ -19,6 +20,7 @@ export default function VariantPage() {
   const id = Number(params.id);
   const validId = Number.isSafeInteger(id) && id > 0;
   const detail = useQuery({ queryKey: ["variant", id], queryFn: () => api.variant(id), enabled: validId, retry: 1 });
+  const plan = useQuery({ queryKey: ["variant-plan", id], queryFn: () => api.variantPlan(id), enabled: validId, retry: 0 });
   if (validId && detail.isPending) return <main><SiteHeader kicker="GEAR NOTES" /><div className="detail-hero"><div className="skeleton aspect-square" /><div className="space-y-5 py-6"><div className="skeleton h-7 w-3/4" /><div className="skeleton h-20" /><p className="micro-label" role="status">正在载入装备…</p></div></div></main>;
   if (!validId || detail.isError || !detail.data) return <main><SiteHeader kicker="GEAR NOTES" /><div className="empty-state"><Icon name="mountain" /><h1 className="mb-3 text-xl font-semibold">暂时无法读取这件装备</h1><p>记录可能不存在，或连接暂时不可用。</p><Link href="/variants" className="btn-primary">返回装备目录<Icon name="arrow" /></Link></div></main>;
   const variant = detail.data;
@@ -44,7 +46,7 @@ export default function VariantPage() {
       {!canSubscribe && <p className="detail-price-sub mt-3">补齐规格和可信报价后，才能关注精确降价。</p>}
       <dl className="detail-meta"><dt>比较范围</dt><dd>同款 · 同色 · 同码，外币渠道分别展示</dd><dt>相关记录</dt><dd>{variant.deals.length} 条线报 · {variant.channels.length} 个渠道记录</dd></dl>
     </div></section>
-    <div className="detail-body"><div><section className="content-section" id="channel-quotes"><h2><span className="section-number">01</span>渠道报价与购买条件</h2><QuoteList channels={variant.channels} bestListingId={best?.listing_id} /></section><section className="content-section"><h2><span className="section-number">02</span>到手价历史</h2><PriceHistory quote={history} /></section></div><aside><SubscribeBox variantId={variant.id} canSubscribe={canSubscribe} historyDays={variant.history_days ?? history?.history_days} /><div className="mt-4 notice"><strong>核对后再出发</strong><br />不同颜色、尺码、会员身份和支付方式，可能影响最终价格。海淘还需核算运费、税费与汇率。</div></aside></div>
+    <div className="detail-body"><div><section className="content-section" id="channel-quotes"><h2><span className="section-number">01</span>渠道报价与购买条件</h2><QuoteList channels={variant.channels} bestListingId={best?.listing_id} /></section><section className="content-section" id="deal-plan"><h2><span className="section-number">02</span>各平台现价与最优方案</h2>{plan.isPending ? <div className="notice"><strong>正在整理各平台参考价…</strong></div> : plan.data ? <PlanPanel plan={plan.data} /> : <div className="notice"><strong>这件装备还没有带价格的线报。</strong><br />采集到相关优惠后会自动给出各平台对比与叠加方案。</div>}</section><section className="content-section"><h2><span className="section-number">03</span>到手价历史</h2><PriceHistory quote={history} /></section></div><aside><SubscribeBox variantId={variant.id} canSubscribe={canSubscribe} historyDays={variant.history_days ?? history?.history_days} /><div className="mt-4 notice"><strong>核对后再出发</strong><br />不同颜色、尺码、会员身份和支付方式，可能影响最终价格。海淘还需核算运费、税费与汇率。</div></aside></div>
     {variant.deals.length > 0 && <section className="detail-related" id="deal-notes"><div className="section-heading"><h2>{confirmed ? "同规格的线报记录" : "相关装备线索"}<small>{variant.deals.length} 条</small></h2><span>线报参考，不代表当前报价</span></div><ul className="deal-grid">{variant.deals.map((deal, index) => <DealCard deal={asDealItem(deal)} index={index} key={deal.id} />)}</ul></section>}
     <div className="mobile-detail-bar"><Link href="/variants" className="mobile-back"><Icon name="grid" />目录</Link><div className="bar-price"><small>{best ? "当前核验到手价" : hasPrice(reported) ? "历史线报最低 · 非现价" : "当前报价"}</small><strong>{best ? money(best.effective_cents, best.currency) : hasPrice(reported) ? money(reported, variant.currency || "CNY") : "等待核验"}</strong></div><a href={merchantUrl ?? (canSubscribe ? "#price-alert" : cluesHref)} className="btn-primary" target={merchantUrl ? "_blank" : undefined} rel={merchantUrl ? "noopener noreferrer" : undefined}>{merchantUrl ? "前往渠道核对" : canSubscribe ? "关注降价" : "查看优惠线索"}<Icon name={merchantUrl ? "external" : "arrow"} /></a></div>
   </main>;

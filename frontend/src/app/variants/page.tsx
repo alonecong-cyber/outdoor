@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BrowseControls } from "@/components/BrowseControls";
-import { DealSkeletons } from "@/components/DealCard";
+import { DealCard, DealSkeletons } from "@/components/DealCard";
 import { Icon } from "@/components/Icon";
 import { ProductImage } from "@/components/ProductImage";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -17,6 +17,16 @@ export default function VariantsPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const variants = useQuery({ queryKey: ["variants", brand], queryFn: () => api.variants({ brand }) });
+  const trimmed = query.trim();
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get("q");
+    if (initial) setQuery(initial);
+  }, []);
+  const dealHits = useQuery({
+    queryKey: ["deal-hits", trimmed],
+    queryFn: () => api.deals({ q: trimmed, limit: 6 }),
+    enabled: trimmed.length > 1,
+  });
   const filtered = useMemo(() => (variants.data ?? []).filter((variant) => {
     const text = `${variant.brand_name} ${variant.style_name} ${officialStyleNumber(variant.style_number)} ${variant.color} ${variant.size} ${variant.category}`;
     return text.toLowerCase().includes(query.trim().toLowerCase()) && matchesCategory(text, category);
@@ -38,5 +48,6 @@ export default function VariantsPage() {
       })}</ul> : <div className="empty-state"><Icon name="search" /><h2>暂时没有符合条件的装备</h2><p>试试其他关键词，或从最新优惠线索中寻找装备。</p>{brand || query || category !== "all" ? <button type="button" className="btn btn-ghost" onClick={reset}>清除筛选</button> : <Link href="/" className="btn btn-ghost">发现优惠<Icon name="arrow" /></Link>}</div>}
       <p className="results-note">历史线报最低只表示来源文章曾报告的价格。规格待补齐时，不据此推断同一商品的多渠道最低价。</p>
     </section>
+    {trimmed.length > 1 && !!dealHits.data?.length && <section className="detail-related" aria-label="相关线报"><div className="section-heading"><h2>线报里也找到了<small>{dealHits.data.length} 条</small></h2><span>目录没有收录时，先看这些优惠线索</span></div><ul className="deal-grid">{dealHits.data.map((deal, index) => <DealCard deal={deal} index={index} key={deal.id} />)}</ul></section>}
   </main>;
 }

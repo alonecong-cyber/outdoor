@@ -134,6 +134,39 @@ export type AlertEventItem = {
   send_error: string | null;
 };
 
+export type PlanStep = {
+  promo_name: string;
+  kind: string;
+  amount_before_cents: number;
+  delta_cents: number;
+  amount_after_cents: number;
+  note: string;
+};
+
+export type DealPlan = {
+  deal_id: number;
+  channel: string;
+  url: string;
+  title: string;
+  published_at: string | null;
+  base_price_cents: number;
+  paid_now_cents: number;
+  rebate_cents: number;
+  effective_cents: number;
+  claimed_final_cents: number | null;
+  promo_count: number;
+  steps: PlanStep[];
+  notes: string[];
+};
+
+export type VariantPlan = {
+  variant_id: number;
+  basis: "reported";
+  note: string;
+  platforms: { channel: string; min_price_cents: number; deal_id: number; published_at: string | null; deal_count: number }[];
+  best_plan: DealPlan;
+};
+
 export type DealVariantInfo = {
   variant_id: number;
   brand_slug: string;
@@ -214,6 +247,7 @@ export const api = {
     return request<VariantListItem[]>(`/api/variants${q}`);
   },
   variant: (id: number) => request<VariantDetail>(`/api/variants/${id}`),
+  variantPlan: (id: number) => request<VariantPlan>(`/api/variants/${id}/plan`),
   deal: (id: number) => request<DealDetail>(`/api/deals/${id}`),
   status: () => request<SiteStatus>("/api/status"),
   quoteByListing: (listing_id: number) =>

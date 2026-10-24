@@ -48,6 +48,9 @@ button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 .header-end { display: flex; align-items: center; }
 .header-edition { font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em; white-space: nowrap; color: var(--color-dim); }
 .header-edition span { display: block; margin-top: 4px; text-align: right; }
+.header-search { width: 220px; }
+.header-search .search-field .field { height: 40px; min-height: 40px; font-size: 12px; padding-left: 38px; padding-right: 12px; }
+.header-search .search-field .icon { top: 11px; left: 12px; width: 16px; height: 16px; }
 .mobile-menu { display: none; }
 .site-footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 0 12px; margin-top: 40px; border-top: 1px solid var(--color-line); color: var(--color-dim); font-size: 10px; letter-spacing: .06em; }
 .bottom-nav { display: none; }
@@ -250,8 +253,10 @@ button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
   .site-header { gap: 20px; }
   .detail-hero { gap: 30px; }
   .deal-grid { gap: 16px; }
+  .header-search { width: 170px; }
 }
 @media (max-width: 767px) {
+  .header-search { display: none; }
   html { scroll-padding-top: 16px; }
   .app-shell { padding: 0 18px 90px; }
   .site-header { height: 76px; margin-bottom: 18px; justify-content: space-between; }

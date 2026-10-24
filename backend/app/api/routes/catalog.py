@@ -36,6 +36,8 @@ def _reported(deals: list[Deal]) -> tuple[int | None, str]:
 
 @router.get("/variants")
 def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -> list[dict]:
+    from sqlalchemy import or_
+
     stmt = (
         select(Variant, Style, Brand)
         .join(Style, Variant.style_id == Style.id)
@@ -43,10 +45,21 @@ def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -
     )
     if brand:
         stmt = stmt.where(Brand.slug == brand)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Style.name.ilike(like),
+                Style.style_number.ilike(like),
+                Style.category.ilike(like),
+                Variant.color.ilike(like),
+                Variant.size.ilike(like),
+                Brand.name.ilike(like),
+                Brand.name_cn.ilike(like),
+            )
+        )
     out = []
     for variant, style, brand_obj in db.exec(stmt).all():
-        if q and q.lower() not in f"{style.name} {style.style_number} {variant.color}".lower():
-            continue
         deals = list(
             db.exec(
                 select(Deal)
@@ -130,6 +143,19 @@ def variant_detail(variant_id: int, db: Session = Depends(get_db)) -> dict:
         "can_subscribe": bool(confirmed and current),
         "min_price_cents": min((c["effective_cents"] for c in current), default=None),
     }
+
+
+@router.get("/variants/{variant_id}/plan")
+def variant_plan(variant_id: int, db: Session = Depends(get_db)) -> dict:
+    """各平台参考现价 + 最优优惠叠加方案（由线报摘要估算）。"""
+    if db.get(Variant, variant_id) is None:
+        raise HTTPException(404, "商品规格不存在")
+    from app.pricing.plan import build_variant_plan
+
+    plan = build_variant_plan(db, variant_id)
+    if plan is None:
+        raise HTTPException(404, "该规格暂无带价格的线报")
+    return plan
 
 
 @router.get("/listings/{listing_id}/history")
