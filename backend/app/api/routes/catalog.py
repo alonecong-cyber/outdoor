@@ -69,8 +69,24 @@ def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -
         )
         channels = channel_quotes(db, variant.id)
         current = current_cny_quotes(channels)
+        # 外币核验报价（如官网 USD）不参与人民币最低价比较，但如实计数与展示。
+        verified_any = [
+            c
+            for c in channels
+            if c["price_status"] == "verified"
+            and c["in_stock"] is True
+            and c["effective_cents"] is not None
+            and c["effective_cents"] > 0
+        ]
         reported_min, report_currency = _reported(deals)
         current_min = min((c["effective_cents"] for c in current), default=None)
+        if current:
+            basis_currency = "CNY"
+        elif verified_any and len({c["currency"] for c in verified_any}) == 1:
+            basis_currency = verified_any[0]["currency"]
+            current_min = min(c["effective_cents"] for c in verified_any)
+        else:
+            basis_currency = "CNY"
         confirmed = identity_confirmed(style, variant)
         out.append(
             {
@@ -84,12 +100,16 @@ def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -
                 "size": variant.size,
                 "min_price_cents": current_min,
                 "reported_min_price_cents": reported_min,
-                "currency": "CNY" if current else report_currency,
+                "currency": basis_currency if current or verified_any else (
+                    "CNY" if current else report_currency
+                ),
                 "reported_currency": report_currency,
-                "price_basis": "verified" if current else "reported" if deals else "unknown",
+                "price_basis": (
+                    "verified" if (current or verified_any) else "reported" if deals else "unknown"
+                ),
                 "match_status": "confirmed" if confirmed else "needs_review",
                 "deal_count": len(deals),
-                "verified_offer_count": len(current),
+                "verified_offer_count": len(verified_any),
                 "latest_reported_at": iso(deals[0].published_at or deals[0].created_at)
                 if deals
                 else None,
