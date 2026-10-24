@@ -1,0 +1,302 @@
+{
+  "products": [
+    {
+      "id": 8589871775894,
+      "title": "Arc'teryx Beta AR Jacket - Men's",
+      "handle": "255314-arc-teryx-beta-ar-jacket-men-s",
+      "body_html": "",
+      "published_at": "2026-01-07T16:21:50-08:00",
+      "created_at": "2026-01-07T16:21:48-08:00",
+      "updated_at": "2026-10-24T04:19:31-07:00",
+      "vendor": "Arc'teryx",
+      "product_type": "Shell Jackets",
+      "tags": [
+        "app:Pimento",
+        "loyalty_eligible"
+      ],
+      "variants": [
+        {
+          "id": 46148954947734,
+          "title": "Vitality / S",
+          "option1": "Vitality",
+          "option2": "S",
+          "option3": null,
+          "sku": "EB-255314-1058",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": {
+            "id": 41094592430230,
+            "product_id": 8589871775894,
+            "position": 1,
+            "created_at": "2026-01-06T13:49:21-08:00",
+            "updated_at": "2026-01-06T13:49:23-08:00",
+            "alt": "Arc'teryx Beta AR Jacket - Men's Vitality::Vitality",
+            "width": 1500,
+            "height": 1500,
+            "src": "https://cdn.shopify.com/s/files/1/0679/7882/1782/files/product-image-1172461.jpg?v=1767736163",
+            "variant_ids": [
+              46148954947734,
+              46148954980502
+            ]
+          },
+          "available": false,
+          "price": "600.00",
+          "grams": 735,
+          "compare_at_price": "600.00",
+          "position": 1,
+          "product_id": 8589871775894,
+          "created_at": "2026-01-09T05:25:10-08:00",
+          "updated_at": "2026-10-24T04:19:31-07:00"
+        },
+        {
+          "id": 46148954980502,
+          "title": "Vitality / M",
+          "option1": "Vitality",
+          "option2": "M",
+          "option3": null,
+          "sku": "EB-255314-1059",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": {
+            "id": 41094592430230,
+            "product_id": 8589871775894,
+            "position": 1,
+            "created_at": "2026-01-06T13:49:21-08:00",
+            "updated_at": "2026-01-06T13:49:23-08:00",
+            "alt": "Arc'teryx Beta AR Jacket - Men's Vitality::Vitality",
+            "width": 1500,
+            "height": 1500,
+            "src": "https://cdn.shopify.com/s/files/1/0679/7882/1782/files/product-image-1172461.jpg?v=1767736163",
+            "variant_ids": [
+              46148954947734,
+              46148954980502
+            ]
+          },
+          "available": false,
+          "price": "600.00",
+          "grams": 735,
+          "compare_at_price": "600.00",
+          "position": 2,
+          "product_id": 8589871775894,
+          "created_at": "2026-01-09T05:25:10-08:00",
+          "updated_at": "2026-10-24T04:19:31-07:00"
+        },
+        {
+          "id": 46148954718358,
+          "title": "Electra/Soulsonic / S",
+          "option1": "Electra/Soulsonic",
+          "option2": "S",
+          "option3": null,
+          "sku": "EB-255314-1051",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": {
+            "id": 41094335987862,
+            "product_id": 8589871775894,
+            "position": 9,
+            "created_at": "2026-01-06T13:44:51-08:00",
+            "updated_at": "2026-01-06T13:44:53-08:00",
+            "alt": "Arc'teryx Beta AR Jacket - Men's Electra/Soulsonic::Electra/Soulsonic",
+            "width": 1500,
+            "height": 1500,
+            "src": "https://cdn.shopify.com/s/files/1/0679/7882/1782/files/product-image-1166225.jpg?v=1767735893",
+            "variant_ids": [
+              46148954718358,
+              46148954751126,
+              46148954783894,
+              46148954816662
+            ]
+          },
+          "available": false,
+          "price": "540.00",
+          "grams": 735,
+          "compare_at_price": "600.00",
+          "position": 3,
+          "product_id": 8589871775894,
+          "created_at": "2026-01-09T05:25:10-08:00",
+          "updated_at": "2026-10-24T04:19:31-07:00"
+        },
+        {
+          "id": 46148954751126,
+          "title": "Electra/Soulsonic / M",
+          "option1": "Electra/Soulsonic",
+          "option2": "M",
+          "option3": null,
+          "sku": "EB-255314-1052",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": {
+            "id": 41094335987862,
+            "product_id": 8589871775894,
+            "position": 9,
+            "created_at": "2026-01-06T13:44:51-08:00",
+            "updated_at": "2026-01-06T13:44:53-08:00",
+            "alt": "Arc'teryx Beta AR Jacket - Men's Electra/Soulsonic::Electra/Soulsonic",
+            "width": 1500,
+            "height": 1500,
+            "src": "https://cdn.shopify.com/s/files/1/0679/7882/1782/files/product-image-1166225.jpg?v=1767735893",
+            "variant_ids": [
+              46148954718358,
+              46148954751126,
+              46148954783894,
+              46148954816662
+            ]
+          },
+          "available": false,
+          "price": "540.00",
+          "grams": 735,
+          "compare_at_price": "600.00",
+          "position": 4,
+          "product_id": 8589871775894,
+          "created_at": "2026-01-09T05:25:10-08:00",
+          "updated_at": "2026-10-24T04:19:31-07:00"
+        }
+      ],
+      "images": [],
+      "options": [
+        {
+          "name": "Color",
+          "position": 1,
+          "values": [
+            "Vitality",
+            "Electra/Soulsonic",
+            "Solaris/Sequoia",
+            "Tatsu",
+            "Black/Rune",
+            "Stone Wash/Dark Stone Wash",
+            "Black",
+            "Black Sapphire",
+            "Blue Tetra"
+          ]
+        },
+        {
+          "name": "Size",
+          "position": 2,
+          "values": [
+            "S",
+            "M",
+            "L",
+            "XL",
+            "XS",
+            "XXL",
+            "3XL"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8590107541654,
+      "title": "Arc'teryx Beta AR - StormHood Jacket - Men's",
+      "handle": "264090-arc-teryx-beta-ar-stormhood-jacket-men-s",
+      "body_html": "",
+      "published_at": "2026-01-07T16:34:56-08:00",
+      "created_at": "2026-01-07T16:34:55-08:00",
+      "updated_at": "2026-10-24T04:19:31-07:00",
+      "vendor": "Arc'teryx",
+      "product_type": "Shell Jackets",
+      "tags": [
+        "app:Pimento",
+        "loyalty_eligible"
+      ],
+      "variants": [
+        {
+          "id": 46151278559382,
+          "title": "Stonegreen / M",
+          "option1": "Stonegreen",
+          "option2": "M",
+          "option3": null,
+          "sku": "EB-264090-1038",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": {
+            "id": 41097076998294,
+            "product_id": 8590107541654,
+            "position": 1,
+            "created_at": "2026-01-06T14:30:14-08:00",
+            "updated_at": "2026-01-06T14:30:17-08:00",
+            "alt": "Arc'teryx Beta AR - StormHood Jacket - Men's Stonegreen::Stonegreen",
+            "width": 1500,
+            "height": 1500,
+            "src": "https://cdn.shopify.com/s/files/1/0679/7882/1782/files/product-image-1236844.jpg?v=1767738617",
+            "variant_ids": [
+              46151278559382,
+              46151278592150,
+              46151278624918,
+              46151278657686
+            ]
+          },
+          "available": false,
+          "price": "450.00",
+          "grams": 735,
+          "compare_at_price": "600.00",
+          "position": 1,
+          "product_id": 8590107541654,
+          "created_at": "2026-01-09T06:24:16-08:00",
+          "updated_at": "2026-10-24T04:19:31-07:00"
+        },
+        {
+          "id": 46151278592150,
+          "title": "Stonegreen / L",
+          "option1": "Stonegreen",
+          "option2": "L",
+          "option3": null,
+          "sku": "EB-264090-1039",
+          "requires_shipping": true,
+          "taxable": true,
+          "featured_image": {
+            "id": 41097076998294,
+            "product_id": 8590107541654,
+            "position": 1,
+            "created_at": "2026-01-06T14:30:14-08:00",
+            "updated_at": "2026-01-06T14:30:17-08:00",
+            "alt": "Arc'teryx Beta AR - StormHood Jacket - Men's Stonegreen::Stonegreen",
+            "width": 1500,
+            "height": 1500,
+            "src": "https://cdn.shopify.com/s/files/1/0679/7882/1782/files/product-image-1236844.jpg?v=1767738617",
+            "variant_ids": [
+              46151278559382,
+              46151278592150,
+              46151278624918,
+              46151278657686
+            ]
+          },
+          "available": false,
+          "price": "450.00",
+          "grams": 735,
+          "compare_at_price": "600.00",
+          "position": 2,
+          "product_id": 8590107541654,
+          "created_at": "2026-01-09T06:24:16-08:00",
+          "updated_at": "2026-10-24T04:19:31-07:00"
+        }
+      ],
+      "images": [],
+      "options": [
+        {
+          "name": "Color",
+          "position": 1,
+          "values": [
+            "Stonegreen",
+            "Black Sapphire",
+            "Dynasty",
+            "Phantasm/Interstellar",
+            "Black",
+            "Heritage"
+          ]
+        },
+        {
+          "name": "Size",
+          "position": 2,
+          "values": [
+            "M",
+            "L",
+            "XL",
+            "XXL",
+            "S",
+            "XS"
+          ]
+        }
+      ]
+    }
+  ]
+}
