@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BrowseControls } from "@/components/BrowseControls";
 import { DealCard, DealSkeletons } from "@/components/DealCard";
@@ -15,6 +15,8 @@ export default function DealFeedPage() {
   const [brand, setBrand] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
+  const [visible, setVisible] = useState(24);
+  useEffect(() => setVisible(24), [brand, query, category]);
   const deals = useQuery({ queryKey: ["deals", brand], queryFn: () => api.deals({ brand, limit: 100 }), staleTime: 60_000 });
   const filtered = useMemo(() => (deals.data ?? []).filter((deal) => deal.title.toLowerCase().includes(query.trim().toLowerCase()) && matchesCategory(deal.title, category)), [deals.data, query, category]);
   const reset = () => { setQuery(""); setBrand(""); setCategory("all"); };
@@ -28,7 +30,10 @@ export default function DealFeedPage() {
     <StatusStrip />
     <BrowseControls query={query} setQuery={setQuery} brand={brand} setBrand={setBrand} category={category} setCategory={setCategory} />
     <section aria-labelledby="latest-deals"><div className="section-heading"><h2 id="latest-deals">出发前的好价线索<small>{deals.data ? `${filtered.length} 条` : "FIELD NOTES"}</small></h2><span>最新入库 · 按标题分类</span></div>
-      {deals.isPending ? <DealSkeletons /> : deals.isError ? <div className="empty-state"><Icon name="mountain" /><h2>优惠暂时没有加载出来</h2><p>连接恢复后可重新载入已有线报。</p><button type="button" className="btn btn-ghost" onClick={() => void deals.refetch()}>重新加载</button></div> : filtered.length > 0 ? <ul className="deal-grid">{filtered.map((deal, index) => <DealCard key={deal.id} deal={deal} index={index} />)}</ul> : <div className="empty-state"><Icon name="search" /><h2>{deals.data?.length || brand || query || category !== "all" ? "暂时没有符合条件的装备" : "优惠线索正在准备中"}</h2><p>{brand || query || category !== "all" ? "试试其他关键词，或查看全部装备。" : "线报由后台更新。新的优惠入库后，会出现在这里。"}</p>{(brand || query || category !== "all") && <button type="button" className="btn btn-ghost" onClick={reset}>清除筛选</button>}</div>}
+      {deals.isPending ? <DealSkeletons /> : deals.isError ? <div className="empty-state"><Icon name="mountain" /><h2>优惠暂时没有加载出来</h2><p>连接恢复后可重新载入已有线报。</p><button type="button" className="btn btn-ghost" onClick={() => void deals.refetch()}>重新加载</button></div> : filtered.length > 0 ? <>
+        <ul className="deal-grid">{filtered.slice(0, visible).map((deal, index) => <DealCard key={deal.id} deal={deal} index={index} />)}</ul>
+        {filtered.length > visible && <div className="load-more"><button type="button" className="btn btn-ghost" onClick={() => setVisible((count) => count + 24)}>加载更多线报<small className="ml-2 text-dim">还有 {filtered.length - visible} 条</small></button></div>}
+      </> : <div className="empty-state"><Icon name="search" /><h2>{deals.data?.length || brand || query || category !== "all" ? "暂时没有符合条件的装备" : "优惠线索正在准备中"}</h2><p>{brand || query || category !== "all" ? "试试其他关键词，或查看全部装备。" : "线报由后台更新。新的优惠入库后，会出现在这里。"}</p>{(brand || query || category !== "all") && <button type="button" className="btn btn-ghost" onClick={reset}>清除筛选</button>}</div>}
       <p className="results-note">线报价格来自来源文章，可能已过期或附有特定条件。进入详情核对适用规格、优惠说明与核验状态。</p>
     </section>
   </main>;

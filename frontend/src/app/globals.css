@@ -188,6 +188,9 @@ button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 .detail-meta dt { color: var(--color-dim); }
 .detail-meta dd { margin: 0; }
 .detail-body { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(260px, 1fr); align-items: start; gap: 30px; }
+.detail-body aside { position: sticky; top: 118px; }
+.load-more { display: flex; justify-content: center; margin-top: 28px; }
+.load-more small { font-weight: 400; }
 .content-section { margin-bottom: 30px; }
 .content-section > h2, .section-title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; letter-spacing: -.03em; margin: 0 0 18px; }
 .section-number { font-family: var(--font-mono); color: #9da78f; font-size: 10px; letter-spacing: 0; font-weight: 400; }
@@ -352,6 +355,7 @@ button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
   .spec-chips { margin-bottom: 17px; }
   .spec-chip { font-size: 10px; }
   .detail-body { grid-template-columns: 1fr; gap: 0; }
+  .detail-body aside { position: static; }
   .content-section { margin-bottom: 25px; }
   .content-section > h2, .section-title { font-size: 17px; margin-bottom: 14px; }
   .purchase-notes { padding: 19px; font-size: 12px; }
