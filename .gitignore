@@ -1,0 +1,26 @@
+# 密钥与环境
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# 运行时数据（快照库、任务库、日志）
+backend/var/
+*.db
+*.db-journal
+
+# 前端
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/var/
+*.tsbuildinfo
+
+# 系统
+.DS_Store

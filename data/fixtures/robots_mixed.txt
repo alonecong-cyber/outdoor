@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /cart
+Disallow: /checkout
+Disallow: /*?*size=
+
+User-agent: OutdoorDealBot
+Disallow: /

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table>
+  <row>
+    <Product_ID>123456</Product_ID>
+    <SKU_Code>27910</SKU_Code>
+    <Brand_Name>Arc'teryx</Brand_Name>
+    <Product_Name>Beta LT Jacket - Men's</Product_Name>
+    <Retail_Price>599.00</Retail_Price>
+    <Sale_Price>449.25</Sale_Price>
+    <Image_URL>https://images.example.com/beta-lt.jpg</Image_URL>
+    <Deep_URL>https://example-retailer.com/beta-lt?aff=1</Deep_URL>
+    <Merchant_Name>Example Outdoor Retailer</Merchant_Name>
+    <Stock_Status>In Stock</Stock_Status>
+  </row>
+  <row>
+    <Product_ID>123457</Product_ID>
+    <SKU_Code>195871510</SKU_Code>
+    <Brand_Name>Patagonia</Brand_Name>
+    <Product_Name>Torrentshell 3L Rain Jacket - Men's</Product_Name>
+    <Retail_Price>329.00</Retail_Price>
+    <Sale_Price>329.00</Sale_Price>
+    <Image_URL>https://images.example.com/torrentshell.jpg</Image_URL>
+    <Deep_URL>https://example-retailer.com/torrentshell?aff=1</Deep_URL>
+    <Merchant_Name>Example Outdoor Retailer</Merchant_Name>
+    <Stock_Status>Out of Stock</Stock_Status>
+  </row>
+</table>

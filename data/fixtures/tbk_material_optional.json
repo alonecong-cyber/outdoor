@@ -1,0 +1,32 @@
+{
+  "taobao_tbk_dg_material_optional_response": {
+    "result_list": {
+      "map_data": [
+        {
+          "item_id": 671234567890,
+          "title": "Patagonia 巴塔哥尼亚 Retro-X 抓绒外套 28425 男女同款",
+          "url": "https://uland.taobao.com/xxxx",
+          "pict_url": "http://gw.alicdn.com/bao/uploaded/example1.jpg",
+          "zk_final_price": "2399.00",
+          "reserve_price": "2999.00",
+          "coupon_amount": "200.00",
+          "coupon_start_fee": "2000.00",
+          "volume": 1200,
+          "user_type": 1,
+          "nick": "patagonia官方旗舰店"
+        },
+        {
+          "item_id": 679876543210,
+          "title": "始祖鸟 ARC'TERYX Gamma LT 软壳 jacket 26994",
+          "url": "https://uland.taobao.com/yyyy",
+          "pict_url": "http://gw.alicdn.com/bao/uploaded/example2.jpg",
+          "zk_final_price": "3299.00",
+          "reserve_price": "3699.00",
+          "volume": 350,
+          "user_type": 1,
+          "nick": "arcteryx官方企业店"
+        }
+      ]
+    }
+  }
+}

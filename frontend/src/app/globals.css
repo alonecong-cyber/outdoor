@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b110d;
+  --color-panel: #10170f;
+  --color-panel-2: #152015;
+  --color-ink: #e9eee6;
+  --color-dim: #8fa294;
+  --color-line: #243126;
+  --color-accent: #ff5a1f;
+  --color-accent-soft: #ff5a1f2e;
+  --color-moss: #a8c97a;
+  --color-ice: #9fd4e8;
+
+  --font-display: var(--font-archivo), "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: var(--font-plex-sans), "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #0b110d;
+}
+
+/* —— 手感层：颗粒 + 等高线 —— */
+
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes topo-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-60px, 40px, 0);
+  }
+}
+
+.topo-drift {
+  animation: topo-drift 90s linear infinite alternate;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise {
+  animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.rise-1 { animation-delay: 0.05s; }
+.rise-2 { animation-delay: 0.12s; }
+.rise-3 { animation-delay: 0.2s; }
+.rise-4 { animation-delay: 0.28s; }
+.rise-5 { animation-delay: 0.36s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .topo-drift,
+  .rise,
+  .rise-1,
+  .rise-2,
+  .rise-3,
+  .rise-4,
+  .rise-5 {
+    animation: none;
+  }
+}
+
+/* —— 部件 —— */
+
+.micro-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.card {
+  background: color-mix(in oklab, var(--color-panel) 92%, white 8%);
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+}
+
+.btn {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 0.25rem;
+  transition:
+    transform 0.12s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  user-select: none;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #140b06;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.875rem;
+}
+
+.btn-primary:hover {
+  background: #ff7442;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-dim);
+}
+
+.field {
+  width: 100%;
+  background: #0d130e;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+  padding: 0.5rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  outline: none;
+}
+
+.field:focus {
+  border-color: var(--color-accent);
+}
+
+.field::placeholder {
+  color: #5c6b5f;
+}
+
+a,
+button,
+[role="button"],
+input[type="checkbox"],
+select {
+  cursor: pointer;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

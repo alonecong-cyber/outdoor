@@ -1,0 +1,69 @@
+{
+  "jd_union_open_goods_query_responce": {
+    "queryResult": {
+      "code": 0,
+      "message": "success",
+      "totalCount": 2,
+      "data": {
+        "list": [
+          {
+            "skuId": 100012345,
+            "goodsId": 2000123,
+            "goodsName": "始祖鸟 Arc'teryx Beta LT 夹克 男款 27910 黑色 M",
+            "materialUrl": "https://item.jd.com/100012345.html",
+            "detailUrl": "https://item.jd.com/100012345.html",
+            "goodsStatus": 1,
+            "priceInfo": {
+              "price": 3998.0,
+              "lowestPrice": 3798.1,
+              "lowestCouponPrice": 3698.0
+            },
+            "couponInfo": {
+              "couponList": [
+                {
+                  "couponTitle": "店铺券 满3000减300",
+                  "discount": 300,
+                  "quota": 3000,
+                  "bindType": 1,
+                  "platformType": 0,
+                  "couponStartTime": "2026-10-20 00:00:00",
+                  "couponEndTime": "2026-11-11 23:59:59"
+                },
+                {
+                  "couponTitle": "平台券 满2000减100",
+                  "discount": 100,
+                  "quota": 2000,
+                  "bindType": 3,
+                  "platformType": 1,
+                  "couponStartTime": "2026-10-24 00:00:00",
+                  "couponEndTime": "2026-10-31 23:59:59"
+                }
+              ]
+            },
+            "imageInfo": {
+              "imageList": [
+                { "url": "https://img14.360buyimg.com/n1/s800x800_jfs/t1/example1.jpg" }
+              ]
+            },
+            "shopInfo": { "shopName": "始祖鸟官方旗舰店" }
+          },
+          {
+            "skuId": 100098765,
+            "goodsId": 2000987,
+            "goodsName": "The North Face 1996 复刻羽绒服 NF0A3VU7 男款 黑色 L",
+            "materialUrl": "https://item.jd.com/100098765.html",
+            "goodsStatus": 1,
+            "priceInfo": { "price": 2898.0, "lowestPrice": 2898.0 },
+            "couponInfo": { "couponList": [] },
+            "imageInfo": {
+              "imageList": [
+                { "url": "https://img14.360buyimg.com/n1/s800x800_jfs/t1/example2.jpg" }
+              ]
+            },
+            "shopInfo": { "shopName": "北面官方旗舰店" }
+          }
+        ]
+      }
+    }
+  }
+}

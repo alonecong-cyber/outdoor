@@ -1,0 +1,46 @@
+[project]
+name = "outdoordeal-backend"
+version = "0.1.0"
+description = "OutdoorDeal backend — 户外服饰跨渠道比价与最低到手价计算"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlmodel>=0.0.22",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "httpx>=0.27",
+    "apscheduler>=3.10,<4",
+    "ortools>=9.11",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+]
+
+[project.optional-dependencies]
+# 网页采集优先 httpx 静态抓取；仅当目标页必须执行 JS 时才装（uv sync --extra browser）
+browser = ["playwright>=1.49"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI Depends() 在参数默认值里是官方惯用法
+ignore = ["B008"]
