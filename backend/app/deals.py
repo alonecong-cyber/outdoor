@@ -74,6 +74,7 @@ def save_deal(
         deal.image = draft.image
         deal.url = draft.url or deal.url
         deal.tags_json = dump_json(draft.tags)
+        deal.summary = draft.summary or deal.summary
         if draft.published_at:
             deal.published_at = draft.published_at
         created = False
@@ -83,6 +84,7 @@ def save_deal(
             source_id=draft.source_id,
             url=draft.url,
             title=draft.title,
+            summary=draft.summary,
             price_cents=draft.price_cents,
             currency=draft.currency,
             channel=draft.channel,

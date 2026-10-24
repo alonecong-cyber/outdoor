@@ -31,6 +31,7 @@ export type ChannelQuote = {
 export type VariantDeal = {
   id: number;
   title: string;
+  summary: string;
   price_cents: number;
   channel: string;
   url: string;
@@ -118,6 +119,7 @@ export type DealItem = {
   source_id: string;
   url: string;
   title: string;
+  summary: string;
   price_cents: number;
   currency: string;
   channel: string;

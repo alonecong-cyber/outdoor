@@ -102,6 +102,7 @@ class DealOut(BaseModel):
     source_id: str
     url: str
     title: str
+    summary: str = ""
     price_cents: int
     currency: str
     channel: str

@@ -28,6 +28,7 @@ def _to_out(deal: Deal, ctx: dict[int, dict]) -> DealOut:
         source_id=deal.source_id,
         url=deal.url,
         title=deal.title,
+        summary=deal.summary,
         price_cents=deal.price_cents,
         currency=deal.currency,
         channel=deal.channel,

@@ -73,7 +73,7 @@ export default function VariantsPage() {
         <p className="text-sm text-accent">后端不可达：{(variantsQuery.error as Error).message}</p>
       )}
 
-      <ul className="space-y-3">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((v, i) => (
           <li key={v.id} className={`rise rise-${(i % 5) + 1}`}>
             <Link href={`/variants/${v.id}`} className="card block p-4 transition-colors hover:border-dim">
@@ -81,7 +81,7 @@ export default function VariantsPage() {
                 <ProductImage
                   src={v.image}
                   alt={`${v.style_name} ${v.color}`}
-                  className="h-20 w-20 shrink-0 rounded-sm border border-line object-cover sm:h-24 sm:w-24"
+                  className="h-24 w-24 shrink-0 rounded-sm border border-line object-cover sm:h-28 sm:w-28"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="micro-label">

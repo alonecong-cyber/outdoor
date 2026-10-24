@@ -154,7 +154,7 @@ export default function VariantPage() {
           <ProductImage
             src={heroImage}
             alt={`${v.style_name} ${v.color}`}
-            className="h-52 w-full object-cover sm:h-64"
+            className="aspect-[4/3] w-full object-cover md:aspect-[16/9]"
           />
         )}
         <div className="p-5">
@@ -256,7 +256,28 @@ export default function VariantPage() {
                   原文 ↗
                 </a>
               </div>
-              <p className="mt-1.5 line-clamp-2 text-sm text-dim">{d.title}</p>
+              <div className="mt-2 flex items-start gap-3">
+                {d.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={d.image}
+                    alt=""
+                    loading="lazy"
+                    className="h-14 w-14 shrink-0 rounded-sm border border-line object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-snug">{d.title}</p>
+                  {d.summary && !d.title.startsWith(d.summary.slice(0, 10)) && (
+                    <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-dim">
+                      {d.summary}
+                    </p>
+                  )}
+                </div>
+              </div>
             </article>
           ))}
           {dealPoints.length >= 2 && (

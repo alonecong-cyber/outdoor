@@ -199,6 +199,7 @@ class Deal(SQLModel, table=True):
     source_id: str = SQLField(index=True)  # smzdm 文章 ID，如 184615805
     url: str = ""  # 线报原文
     title: str
+    summary: str = ""  # 优惠说明摘要（og:description）：叠券/满减/到手条件
     price_cents: int = 0  # 线报标价（券前）；0 = 未知/免费信息型
     currency: str = "CNY"
     channel: str = ""  # 京东 / 天猫 / 官网 ...
@@ -226,6 +227,7 @@ class DealDraft(BaseModel):
     source_id: str
     url: str = ""
     title: str
+    summary: str = ""
     price_cents: int = 0
     currency: str = "CNY"
     channel: str = ""

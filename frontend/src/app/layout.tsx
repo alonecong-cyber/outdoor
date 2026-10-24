@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" className={`${archivo.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <body className="grain">
         <TopoBackdrop />
-        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-24 pt-6 md:px-6">
+        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-24 pt-6 md:max-w-5xl md:px-6 lg:max-w-6xl">
           <QueryProvider>{children}</QueryProvider>
         </div>
         <BottomNav />

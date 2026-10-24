@@ -104,6 +104,7 @@ def variant_detail(variant_id: int, db: Session = Depends(get_db)) -> dict:
         {
             "id": d.id,
             "title": d.title,
+            "summary": d.summary,
             "price_cents": d.price_cents,
             "channel": d.channel,
             "url": d.url,

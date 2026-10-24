@@ -26,72 +26,80 @@ function DealCard({ deal, index }: { deal: DealItem; index: number }) {
   const ratingTag = deal.tags.find((t) => t.includes("好评率"));
   const lowTag = deal.tags.find((t) => t.includes("新低") || t.includes("低价") || t.includes("低于"));
   const hotTag = deal.tags.find((t) => t.includes("热度"));
+  // og:description 常是标题复读，开头与标题一致时不展示
+  const summary =
+    deal.summary && !deal.title.startsWith(deal.summary.slice(0, 10)) ? deal.summary : "";
   return (
     <li className={`rise rise-${(index % 5) + 1}`}>
-      <article className="card p-4">
-        <div className="flex items-center gap-2">
-          <span className="rounded-sm bg-panel-2 px-1.5 py-0.5 text-[11px] text-ink">
-            {channelName(deal.channel)}
-          </span>
-          {ratingTag && (
-            <span className="rounded-sm border border-moss/60 px-1.5 py-0.5 text-[11px] text-moss">
-              {ratingTag}
-            </span>
-          )}
-          {lowTag && (
-            <span className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent">
-              {lowTag}
-            </span>
-          )}
-          {hotTag && (
-            <span className="rounded-sm border border-line px-1.5 py-0.5 text-[11px] text-dim">
-              {hotTag}
-            </span>
-          )}
-          <span className="micro-label ml-auto">{timeAgo(deal.published_at)}</span>
-          <a
-            href={deal.url}
-            target="_blank"
-            rel="noreferrer"
-            className="micro-label shrink-0 text-dim hover:text-accent"
-          >
-            原文 ↗
-          </a>
-        </div>
+      <article className="card flex h-full flex-col overflow-hidden">
+        {deal.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={deal.image}
+            alt=""
+            loading="lazy"
+            className="aspect-[4/3] w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        )}
 
-        <div className="mt-2.5 flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[15px] font-semibold leading-snug">{deal.title}</h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {deal.price_cents > 0 ? (
-                <span className="num font-display text-xl font-bold text-accent">
-                  {money(deal.price_cents, deal.currency)}
-                </span>
-              ) : (
-                <span className="micro-label">见原文</span>
-              )}
-              {variant && (
-                <Link
-                  href={`/variants/${variant.variant_id}`}
-                  className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent hover:bg-accent-soft/20"
-                >
-                  {variant.brand_name} #{variant.style_number}
-                </Link>
-              )}
-            </div>
+        <div className="flex flex-1 flex-col p-4">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-sm bg-panel-2 px-1.5 py-0.5 text-[11px] text-ink">
+              {channelName(deal.channel)}
+            </span>
+            {ratingTag && (
+              <span className="rounded-sm border border-moss/60 px-1.5 py-0.5 text-[11px] text-moss">
+                {ratingTag}
+              </span>
+            )}
+            {lowTag && (
+              <span className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent">
+                {lowTag}
+              </span>
+            )}
+            {hotTag && (
+              <span className="rounded-sm border border-line px-1.5 py-0.5 text-[11px] text-dim">
+                {hotTag}
+              </span>
+            )}
+            <span className="micro-label ml-auto">{timeAgo(deal.published_at)}</span>
           </div>
-          {deal.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={deal.image}
-              alt=""
-              loading="lazy"
-              className="h-16 w-16 shrink-0 rounded-sm border border-line object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
+
+          <h2 className="mt-2.5 text-[15px] font-semibold leading-snug">{deal.title}</h2>
+          {summary && (
+            <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-dim">
+              {summary}
+            </p>
           )}
+
+          <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+            {deal.price_cents > 0 ? (
+              <span className="num font-display text-2xl font-bold text-accent">
+                {money(deal.price_cents, deal.currency)}
+              </span>
+            ) : (
+              <span className="micro-label">见原文</span>
+            )}
+            {variant && (
+              <Link
+                href={`/variants/${variant.variant_id}`}
+                className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent hover:bg-accent-soft/20"
+              >
+                {variant.brand_name} #{variant.style_number}
+              </Link>
+            )}
+            <a
+              href={deal.url}
+              target="_blank"
+              rel="noreferrer"
+              className="micro-label ml-auto shrink-0 text-dim hover:text-accent"
+            >
+              原文 ↗
+            </a>
+          </div>
         </div>
       </article>
     </li>
@@ -180,7 +188,7 @@ export default function DealFeedPage() {
         <p className="text-sm text-accent">后端不可达：{(dealsQuery.error as Error).message}</p>
       )}
 
-      <ul className="space-y-3">
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((d, i) => (
           <DealCard key={d.id} deal={d} index={i} />
         ))}

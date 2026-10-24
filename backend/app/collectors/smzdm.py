@@ -37,6 +37,7 @@ LOC_RE = re.compile(r"<loc>\s*(.*?)\s*</loc>")
 CATEGORY_LINK_RE = re.compile(r'href="(https://www\.smzdm\.com/p/(\d+)/)"')
 OG_TITLE_RE = re.compile(r'<meta property="og:title" content="([^"]*)"')
 OG_IMAGE_RE = re.compile(r'<meta property="og:image" content="([^"]*)"')
+OG_DESC_RE = re.compile(r'<meta property="og:description" content="([^"]*)"')
 H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.S)
 PUB_TIME_RE = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2})")
 TAG_RE = re.compile(r"[\s　]+")
@@ -150,6 +151,11 @@ def parse_deal_page(html: str, url: str) -> DealDraft:
         if image.startswith("//"):
             image = "https:" + image
 
+    summary = ""
+    og_desc = OG_DESC_RE.search(html)
+    if og_desc:
+        summary = _strip_tags(og_desc.group(1)).strip()
+
     published_at = None
     t = PUB_TIME_RE.search(html)
     if t:
@@ -175,6 +181,7 @@ def parse_deal_page(html: str, url: str) -> DealDraft:
         source_id=deal_id or url,
         url=url,
         title=title or url,
+        summary=summary,
         price_cents=price_cents,
         currency="CNY",
         channel=channel,
@@ -214,6 +221,13 @@ class SmzdmFeedCollector:
         resp = fetch_with_backoff(lambda: self.client.get(self.sitemap_url), sleep=self.sleep)
         resp.raise_for_status()
         return parse_sitemap(resp.text)
+
+    def fetch_page(self, url: str) -> str:
+        """抓单个详情页（限速），返回 HTML。"""
+        self.rate_limiter.wait(SMZDM_HOST)
+        resp = fetch_with_backoff(lambda: self.client.get(url), sleep=self.sleep)
+        resp.raise_for_status()
+        return resp.text
 
     def collect(self, since_id: int = 0, *, limit: int | None = None) -> list[DealDraft]:
         """sitemap 模式（全品类兜底）：发现比 since_id 新的线报并抓详情页。"""
