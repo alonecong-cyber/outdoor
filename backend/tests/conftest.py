@@ -43,9 +43,15 @@ def client(engine) -> Generator[TestClient, None, None]:
             yield s
 
     app.dependency_overrides[get_db] = _override_get_db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
+    app.state.db_engine = engine
+    app.state.disable_scheduler = True
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        app.dependency_overrides.clear()
+        del app.state.db_engine
+        del app.state.disable_scheduler
 
 
 @pytest.fixture()

@@ -32,6 +32,33 @@ def init_db(engine=None) -> None:
     if engine is None:
         engine = get_engine()
     SQLModel.metadata.create_all(engine)
+    # SQLite create_all 不会为已存在的表添加列；仅做可回滚的增量扩展。
+    additions = {
+        "listing": {
+            "source": "TEXT NOT NULL DEFAULT 'manual'",
+            "merchant": "TEXT NOT NULL DEFAULT ''",
+            "stock_verified": "BOOLEAN NOT NULL DEFAULT 0",
+        },
+        "pricesnapshot": {
+            "stock_verified": "BOOLEAN NOT NULL DEFAULT 0",
+            "paid_now_cents": "INTEGER",
+            "rebate_cents": "INTEGER NOT NULL DEFAULT 0",
+            "effective_cents": "INTEGER",
+        },
+        "deal": {
+            "last_checked_at": "DATETIME",
+            "expires_at": "DATETIME",
+            "expired": "BOOLEAN NOT NULL DEFAULT 0",
+        },
+    }
+    with engine.begin() as conn:
+        for table, columns in additions.items():
+            existing = {row[1] for row in conn.exec_driver_sql(f'PRAGMA table_info("{table}")')}
+            for column, definition in columns.items():
+                if column not in existing:
+                    conn.exec_driver_sql(
+                        f'ALTER TABLE "{table}" ADD COLUMN "{column}" {definition}'
+                    )
 
 
 def get_session(engine=None) -> Iterator[Session]:

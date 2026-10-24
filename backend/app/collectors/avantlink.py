@@ -8,8 +8,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
+from urllib.parse import urlparse
 
 from app.collectors.base import make_http_client
 from app.config import get_settings
@@ -56,9 +58,7 @@ def _price_cents(text: str | None) -> int:
     return int(round(float(text) * 100))
 
 
-def parse_product_search(
-    xml_text: str, *, channel_slug: str = "avantlink"
-) -> list[RawListing]:
+def parse_product_search(xml_text: str, *, channel_slug: str = "avantlink") -> list[RawListing]:
     """解析 ProductSearch XML → RawListing（纯函数）。"""
     root = ET.fromstring(xml_text)
     listings: list[RawListing] = []
@@ -71,18 +71,29 @@ def parse_product_search(
         sale = _price_cents(field("Sale_Price"))
         retail = _price_cents(field("Retail_Price"))
         stock_text = field("Stock_Status").lower()
+        merchant = field("Merchant_Name") or urlparse(field("Deep_URL")).hostname or "未知商户"
+        merchant_key = field("Merchant_ID") or merchant
+        merchant_token = hashlib.sha256(merchant_key.encode()).hexdigest()[:12]
+        product_id = field("Product_ID") or field("SKU_Code")
         listings.append(
             RawListing(
                 source="avantlink",
-                channel_slug=channel_slug,
-                external_id=field("SKU_Code") or field("Product_ID"),
+                channel_slug=f"{channel_slug}-{merchant_token}",
+                external_id=f"{merchant_token}:{product_id}",
+                merchant=merchant,
+                brand_hint=field("Brand_Name"),
+                style_number_hint=field("Manufacturer_Part_Number"),
+                color_hint=field("Color"),
+                size_hint=field("Size"),
                 url=field("Deep_URL"),
                 title=f"{field('Brand_Name')} {field('Product_Name')}".strip(),
                 image=field("Image_URL"),
                 price_cents=sale or retail,
                 list_price_cents=retail,
                 currency="USD",
-                in_stock="out of stock" not in stock_text and stock_text != "",
+                in_stock=stock_text in {"in stock", "available", "instock"},
+                stock_verified=stock_text
+                in {"in stock", "available", "instock", "out of stock", "unavailable"},
                 coupons=[],
             )
         )

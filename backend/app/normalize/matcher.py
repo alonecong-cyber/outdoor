@@ -1,10 +1,7 @@
-"""匹配器：提取特征 → 已知 Variant（款号+颜色+尺码），低置信度转人工。
+"""匹配器：款号、颜色、尺码全部一致才允许自动合并。
 
-置信度构成（PRD §6，<0.85 转人工）：
-- 款号精确命中 +0.6；
-- 颜色匹配 +0.25（编辑距离相似度 ≥0.8 按比例折算）；
-- 尺码精确匹配 +0.15；
-- 款号未命中但标题相似度 >0.9：0.6×标题相似度（词典优先、相似度兜底）。
+评分仍为款号0.6 + 颜色0.25 + 尺码0.15；明确冲突直接拒绝，缺规格永远转人工。
+候选应先由调用方按已识别品牌隔离，避免不同品牌共用款号时误匹配。
 """
 
 from __future__ import annotations
@@ -13,7 +10,12 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 
 from app.models import RawListing
-from app.normalize.extract import ExtractedFeatures, extract_features
+from app.normalize.extract import (
+    ExtractedFeatures,
+    extract_features,
+    normalize_color,
+    normalize_size,
+)
 
 REVIEW_THRESHOLD = 0.85
 
@@ -46,48 +48,50 @@ def _similarity(a: str, b: str) -> float:
 
 
 def color_confidence(listing_color: str, variant_color: str) -> float:
-    """颜色置信度：完全一致 1.0；包含关系 0.9；相似度 ≥0.8 折算；否则 0。"""
-    if not listing_color or not variant_color:
-        return 0.0
-    a, b = listing_color.lower().strip(), variant_color.lower().strip()
-    if a == b:
-        return 1.0
-    if a in b or b in a:
-        return 0.9
-    sim = _similarity(a, b)
-    return sim if sim >= 0.8 else 0.0
+    """仅规范化后完全同色才得1分；子串、模糊相似不能证明同一个颜色 SKU。"""
+    a, b = normalize_color(listing_color), normalize_color(variant_color)
+    return 1.0 if a and a == b else 0.0
 
 
 def score_variant(
     feats: ExtractedFeatures, variant: VariantInfo, title: str = ""
 ) -> tuple[float, list[str]]:
-    """给单个 Variant 打分，返回 (置信度, 理由)。"""
-    reasons: list[str] = []
+    """返回(置信度, 理由)。明确不同的规格得0分；规格缺失的分数不达自动接受门槛。"""
+    style = feats.style_number.strip().upper()
+    candidate_style = variant.style_number.strip().upper()
+    color, candidate_color = normalize_color(feats.color), normalize_color(variant.color)
+    size, candidate_size = normalize_size(feats.size), normalize_size(variant.size)
+
+    for label, actual, candidate in (
+        ("款号", style, candidate_style),
+        ("颜色", color, candidate_color),
+        ("尺码", size, candidate_size),
+    ):
+        if actual and candidate and actual != candidate:
+            return 0.0, [f"{label}不匹配 {actual}≠{candidate}，拒绝合并"]
+
     score = 0.0
-
-    if feats.style_number and feats.style_number == variant.style_number.upper():
+    reasons: list[str] = []
+    if style and style == candidate_style:
         score += 0.6
-        reasons.append(f"款号命中 {variant.style_number}")
-    elif feats.style_number:
-        return 0.0, [f"款号不匹配 {feats.style_number}≠{variant.style_number}"]
-
-    c_conf = color_confidence(feats.color, variant.color)
-    if c_conf > 0:
-        score += 0.25 * c_conf
-        reasons.append(f"颜色匹配 {feats.color}≈{variant.color}({c_conf:.2f})")
-
-    if feats.size and feats.size.upper() == variant.size.upper():
+        reasons.append(f"款号命中 {candidate_style}")
+    if color and color == candidate_color:
+        score += 0.25
+        reasons.append(f"颜色匹配 {color}")
+    if size and size == candidate_size:
         score += 0.15
-        reasons.append(f"尺码匹配 {variant.size}")
-    elif feats.size and variant.size:
-        reasons.append(f"尺码不匹配 {feats.size}≠{variant.size}")
+        reasons.append(f"尺码匹配 {size}")
 
-    # 款号缺失时标题相似度兜底（仍要过 0.85 门槛几乎不可能，转人工合理）
-    if not feats.style_number and title:
+    # 标题相似仅供人工审核排序，不能补足缺失的款号或规格。
+    if not style and title:
         sim = _similarity(title, f"{variant.style_number} {variant.color} {variant.size}")
         if sim > 0.9:
             score += 0.6 * sim
             reasons.append(f"标题相似度兜底 {sim:.2f}")
+
+    if not all((style, candidate_style, color, candidate_color, size, candidate_size)):
+        reasons.append("款号/颜色/尺码不完整，需人工核验")
+        score = min(score, REVIEW_THRESHOLD - 0.0001)
 
     return min(score, 1.0), reasons
 
@@ -98,14 +102,16 @@ def match_variant(
     *,
     title: str = "",
 ) -> MatchResult:
-    """在候选 Variant 里找最佳匹配。无候选或全零分 → best=None 转人工。"""
+    """在同品牌候选里找最佳匹配。明确规格冲突不会成为建议 Variant。"""
     best: tuple[float, VariantInfo, list[str]] | None = None
     for v in variants:
         score, reasons = score_variant(feats, v, title=title)
         if best is None or score > best[0]:
             best = (score, v, reasons)
-    if best is None or best[0] <= 0:
-        return MatchResult(None, 0.0, ["无候选/零分，转人工"])
+    if best is None:
+        return MatchResult(None, 0.0, ["无候选，转人工"])
+    if best[0] <= 0:
+        return MatchResult(None, 0.0, best[2] or ["零分，转人工"])
     return MatchResult(best[1].variant_id, round(best[0], 4), best[2])
 
 
@@ -115,7 +121,12 @@ def match_raw_listing(
     *,
     brand_slug: str = "",
 ) -> tuple[ExtractedFeatures, MatchResult]:
-    """RawListing → (特征, 匹配结果)。存储层据此直接落 variant_id 或 MatchCandidate。"""
+    """RawListing → (规范化特征, 匹配结果)。
+
+    自动关联须满足 not result.needs_review。无同规格候选时，调用方仅可在品牌已确认、
+    款号/颜色/尺码均非空且款式已唯一确定后，按(style_id, feats.color, feats.size)
+    get/create Variant；缺规格不能借用相似候选或创建空规格 Variant。
+    """
     feats = extract_features(
         raw.title,
         brand_slug=brand_slug,

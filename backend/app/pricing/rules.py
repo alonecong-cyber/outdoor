@@ -7,7 +7,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.util import utc_now
+from app.util import to_naive_utc, utc_now
 
 
 class PromoKind(StrEnum):
@@ -68,10 +68,11 @@ class Promo(BaseModel):
     source: str = ""
 
     def is_valid_at(self, at: datetime | None = None) -> bool:
-        at = at or utc_now()
-        if self.valid_from and at < self.valid_from:
+        """有效起止时刻均包含边界；无时区值按存储约定视为 UTC。"""
+        at = to_naive_utc(at or utc_now())
+        if self.valid_from and at < to_naive_utc(self.valid_from):
             return False
-        if self.valid_to and at > self.valid_to:
+        if self.valid_to and at > to_naive_utc(self.valid_to):
             return False
         return True
 

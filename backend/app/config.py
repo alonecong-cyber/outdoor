@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     # 运行时
     db_path: Path = BACKEND_DIR / "var" / "outdoordeal.db"
     scheduler_enabled: bool = False
+    notifications_enabled: bool = False
+    offer_freshness_hours: int = 24
+    deal_recheck_hours: int = 6
+    collection_keywords: list[str] = ["始祖鸟", "北面", "Patagonia"]
+    collect_interval_minutes: int = 60
+    ingest_deals_interval_minutes: int = 60
+    ingest_deals_max_details: int = 8
+    collection_specs: list[dict] = []
 
     # 京东联盟（宙斯开放平台）
     jd_union_app_key: str = ""
@@ -42,6 +50,7 @@ class Settings(BaseSettings):
     telegram_chat_id: str = ""
     smtp_host: str = ""
     smtp_port: int = 465
+    smtp_ssl: bool = True
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""

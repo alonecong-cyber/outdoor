@@ -217,7 +217,7 @@ def test_grow_variant_from_deal_title(session):
     brand = session.get(Brand, style.brand_id)
     assert brand.slug == "arcteryx" and brand.name_cn == "始祖鸟"
     assert style.style_number == "27910"
-    assert variant.color == "黑色" and variant.size == "M"
+    assert variant.color == "black" and variant.size == "M"
     # 同款再来一条 → 关联到同一个 variant，不重复建
     assert grow_variant(session, "始祖鸟 Beta LT 27910 黑色 M 特价") == variant_id
 

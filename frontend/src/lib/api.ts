@@ -1,4 +1,7 @@
-/** 后端 API 类型与请求封装。价格一律为整数「分」。 */
+/** 后端 API 类型与请求封装。价格一律为整数「分」；新增字段可选，兼容旧响应。 */
+
+export type MatchStatus = "confirmed" | "needs_review";
+export type ReportedPriceStatus = "reported" | "expired" | "stale";
 
 export type VariantListItem = {
   id: number;
@@ -13,6 +16,20 @@ export type VariantListItem = {
   currency: string;
   deal_count: number;
   image: string;
+  reported_min_price_cents?: number | null;
+  price_basis?: "verified" | "reported" | "unknown";
+  match_status?: MatchStatus;
+  latest_reported_at?: string | null;
+};
+
+export type QuoteStep = {
+  promo_id: string;
+  promo_name: string;
+  kind: string;
+  amount_before_cents: number;
+  delta_cents: number;
+  amount_after_cents: number;
+  note: string;
 };
 
 export type ChannelQuote = {
@@ -25,7 +42,16 @@ export type ChannelQuote = {
   image: string;
   in_stock: boolean | null;
   price_cents: number | null;
-  history: { ts: string; price_cents: number; in_stock: boolean }[];
+  history: { ts: string; price_cents: number; in_stock: boolean; raw_price_cents?: number }[];
+  channel_name?: string;
+  source?: string;
+  checked_at?: string | null;
+  price_status?: "verified" | "stale" | "unmatched";
+  paid_now_cents?: number | null;
+  effective_cents?: number | null;
+  rebate_cents?: number | null;
+  steps?: QuoteStep[];
+  history_days?: number;
 };
 
 export type VariantDeal = {
@@ -37,6 +63,14 @@ export type VariantDeal = {
   url: string;
   image: string;
   published_at: string | null;
+  currency?: string;
+  tags?: string[];
+  price_status?: ReportedPriceStatus;
+  status_note?: string;
+  last_checked_at?: string | null;
+  expires_at?: string | null;
+  source?: string;
+  match_status?: MatchStatus;
 };
 
 export type VariantDetail = {
@@ -49,16 +83,13 @@ export type VariantDetail = {
   image: string;
   channels: ChannelQuote[];
   deals: VariantDeal[];
-};
-
-export type QuoteStep = {
-  promo_id: string;
-  promo_name: string;
-  kind: string;
-  amount_before_cents: number;
-  delta_cents: number;
-  amount_after_cents: number;
-  note: string;
+  brand_name?: string;
+  match_status?: MatchStatus;
+  match_note?: string;
+  reported_min_price_cents?: number | null;
+  currency?: string;
+  history_days?: number;
+  can_subscribe?: boolean;
 };
 
 export type QuoteResult = {
@@ -127,6 +158,27 @@ export type DealItem = {
   tags: string[];
   published_at: string | null;
   variant: DealVariantInfo | null;
+  price_status?: ReportedPriceStatus;
+  status_note?: string;
+  last_checked_at?: string | null;
+  expires_at?: string | null;
+  match_status?: MatchStatus;
+};
+
+export type DealDetail = DealItem & {
+  purchase_notes?: string[];
+  related_deals?: DealItem[];
+  channels?: ChannelQuote[];
+  can_subscribe?: boolean;
+  history_days?: number;
+  min_price_cents?: number | null;
+};
+
+export type SiteStatus = {
+  scheduler_enabled: boolean;
+  last_deal_update: string | null;
+  sources: { source: string; name: string; configured: boolean; note: string }[];
+  counts: { deals: number; verified_offers: number; confirmed_variants: number };
 };
 
 export type IngestResult = {
@@ -162,6 +214,8 @@ export const api = {
     return request<VariantListItem[]>(`/api/variants${q}`);
   },
   variant: (id: number) => request<VariantDetail>(`/api/variants/${id}`),
+  deal: (id: number) => request<DealDetail>(`/api/deals/${id}`),
+  status: () => request<SiteStatus>("/api/status"),
   quoteByListing: (listing_id: number) =>
     request<QuoteResult>("/api/pricing/quote", {
       method: "POST",

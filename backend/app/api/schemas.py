@@ -12,6 +12,7 @@ class HealthOut(BaseModel):
 
 # ---------- 定价 ----------
 
+
 class PromoIn(BaseModel):
     id: str = ""
     kind: str
@@ -110,6 +111,11 @@ class DealOut(BaseModel):
     tags: list[str]
     published_at: str | None
     variant: DealVariantOut | None
+    price_status: str = "reported"
+    status_note: str = "线报发布价格，尚未核验当前库存与优惠条件"
+    last_checked_at: str | None = None
+    expires_at: str | None = None
+    match_status: str = "needs_review"
 
 
 class IngestOut(BaseModel):

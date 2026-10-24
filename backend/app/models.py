@@ -78,6 +78,9 @@ class Listing(SQLModel, table=True):
     url: str = ""
     title: str = ""
     image: str = ""
+    source: str = "manual"
+    merchant: str = ""
+    stock_verified: bool = False
     active: bool = True
     last_seen_at: NaiveDatetime | None = None
 
@@ -98,6 +101,10 @@ class PriceSnapshot(SQLModel, table=True):
     price_cents: int
     currency: str = "CNY"
     in_stock: bool = True
+    stock_verified: bool = True
+    paid_now_cents: int | None = None
+    rebate_cents: int = 0
+    effective_cents: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +216,10 @@ class Deal(SQLModel, table=True):
     matched_variant_id: int | None = SQLField(
         default=None, foreign_key="variant.id", index=True
     )  # 命中已有/新长出的 variant；NULL = 未匹配（照常展示）
-    content_hash: str = ""  # 标题+价格+渠道，重复线报跳过
+    content_hash: str = ""  # 完整内容去重；不把线报价当作渠道报价
+    last_checked_at: NaiveDatetime | None = None
+    expires_at: NaiveDatetime | None = None
+    expired: bool = False
     created_at: NaiveDatetime = SQLField(default_factory=utc_now)
 
     __table_args__ = (UniqueConstraint("source", "source_id"),)
@@ -234,6 +244,9 @@ class DealDraft(BaseModel):
     image: str = ""
     tags: list[str] = Field(default_factory=list)
     published_at: datetime | None = None
+    checked_at: datetime | None = None
+    expires_at: datetime | None = None
+    expired: bool = False
 
 
 class CouponInfo(BaseModel):
@@ -255,6 +268,7 @@ class RawListing(BaseModel):
     url: str = ""
     title: str
     image: str = ""
+    merchant: str = ""
     brand_hint: str = ""
     style_number_hint: str = ""
     color_hint: str = ""
@@ -263,5 +277,6 @@ class RawListing(BaseModel):
     list_price_cents: int = 0  # 原价
     currency: str = "CNY"
     in_stock: bool = True
+    stock_verified: bool = True
     coupons: list[CouponInfo] = Field(default_factory=list)
     collected_at: datetime = Field(default_factory=utc_now)

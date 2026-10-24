@@ -153,6 +153,7 @@ class TestCatalog:
 
 class TestSubscriptions:
     def test_crud(self, client, seed):
+        seed.add_listing(seed.jd, external_id="subscription-ready", price_cents=399800)
         r = client.post(
             "/api/alerts/subscriptions",
             json={"variant_id": seed.variant.id, "target_price_cents": 400000,

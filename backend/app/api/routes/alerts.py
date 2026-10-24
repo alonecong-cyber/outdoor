@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from app.alerts import send_alert
@@ -16,8 +18,8 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 class SubscriptionIn(BaseModel):
     variant_id: int
-    target_price_cents: int = 0
-    kinds: list[str] = ["price_below"]
+    target_price_cents: int = Field(default=0, ge=0)
+    kinds: list[Literal["price_below", "new_low", "restock"]] = ["price_below"]
     destination: str = ""
 
 
@@ -33,6 +35,24 @@ class SubscriptionOut(BaseModel):
 def create_subscription(body: SubscriptionIn, db: Session = Depends(get_db)) -> SubscriptionOut:
     if db.get(Variant, body.variant_id) is None:
         raise HTTPException(404, "variant 不存在")
+    from app.offers import channel_quotes, current_cny_quotes
+
+    channels = channel_quotes(db, body.variant_id)
+    eligible = current_cny_quotes(channels)
+    if set(body.kinds) == {"restock"}:
+        eligible = [
+            row
+            for row in channels
+            if row["price_status"] == "verified"
+            and row["currency"] == "CNY"
+            and row["in_stock"] is not None
+        ]
+    if not eligible:
+        raise HTTPException(409, "该规格暂无有效的人民币渠道报价，暂不能创建到手价提醒")
+    if not body.kinds:
+        raise HTTPException(422, "至少选择一种提醒类型")
+    if "price_below" in body.kinds and body.target_price_cents <= 0:
+        raise HTTPException(422, "目标到手价必须大于0")
     sub = AlertSubscription(
         variant_id=body.variant_id,
         target_price_cents=body.target_price_cents,
@@ -53,7 +73,7 @@ def create_subscription(body: SubscriptionIn, db: Session = Depends(get_db)) -> 
 
 @router.get("/subscriptions", response_model=list[SubscriptionOut])
 def list_subscriptions(db: Session = Depends(get_db)) -> list[SubscriptionOut]:
-    subs = db.exec(select(AlertSubscription)).all()  # type: ignore[call-overload]
+    subs = db.exec(select(AlertSubscription).where(AlertSubscription.active)).all()
     return [
         SubscriptionOut(
             id=s.id,
@@ -71,7 +91,8 @@ def delete_subscription(sub_id: int, db: Session = Depends(get_db)) -> None:
     sub = db.get(AlertSubscription, sub_id)
     if sub is None:
         raise HTTPException(404, "订阅不存在")
-    db.delete(sub)
+    sub.active = False
+    db.add(sub)
     db.commit()
 
 
@@ -87,7 +108,9 @@ class EventOut(BaseModel):
 
 @router.get("/events", response_model=list[EventOut])
 def list_events(
-    unsent: bool = False, limit: int = 50, db: Session = Depends(get_db)
+    unsent: bool = False,
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
 ) -> list[EventOut]:
     stmt = select(AlertEvent).order_by(AlertEvent.created_at.desc()).limit(limit)  # type: ignore[union-attr]
     if unsent:
@@ -114,13 +137,20 @@ def resend_event(event_id: int, db: Session = Depends(get_db)) -> dict:
     if event is None:
         raise HTTPException(404, "事件不存在")
     sub = db.get(AlertSubscription, event.subscription_id)
-    payload = load_json(event.payload_json, {})
-    ok, err = send_alert(payload, destination=sub.destination if sub else "")
+    if sub is None or not sub.active:
+        raise HTTPException(409, "订阅已取消，不能继续发送通知")
+    from app.alerts.history import validate_alert_event
+    from app.util import utc_now
+
+    payload, reason = validate_alert_event(db, event)
+    if payload is None:
+        raise HTTPException(409, reason)
+    ok, err = send_alert(payload, destination=sub.destination)
     if ok:
-        event.sent_at = event.sent_at or event.created_at
-        event.send_error = None
+        event.sent_at = utc_now()
+        event.send_error = ""
     else:
-        event.send_error = err
+        event.send_error = err or "发送失败"
     db.add(event)
     db.commit()
     return {"ok": ok, "error": err}

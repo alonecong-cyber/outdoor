@@ -32,13 +32,16 @@ export function money(cents: number | null | undefined, currency = "CNY"): strin
 export const CHANNEL_NAMES: Record<string, string> = {
   jd: "京东",
   taobao: "淘宝",
+  tmall: "天猫",
+  pdd: "拼多多",
+  vip: "唯品会",
   avantlink: "AvantLink 海外",
   "official-us": "美国官网",
   "official-cn": "中国官网",
 };
 
 export function channelName(slug: string): string {
-  return CHANNEL_NAMES[slug] ?? slug;
+  return CHANNEL_NAMES[slug] ?? (slug || "渠道未标明");
 }
 
 export const PROMO_KIND_NAMES: Record<string, string> = {

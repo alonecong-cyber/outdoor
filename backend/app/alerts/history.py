@@ -50,18 +50,11 @@ def is_new_low(
     first_ts = first_snapshot_ts(session, listing_id)
     if first_ts is None or (now - first_ts).days < min_history_days:
         return False
-    since = now - timedelta(days=window_days)
     bound = before if before is not None else now
-    prices = session.exec(
-        select(PriceSnapshot.price_cents).where(
-            PriceSnapshot.listing_id == listing_id,
-            PriceSnapshot.ts >= since,
-            PriceSnapshot.ts < bound,
-        )
-    ).all()  # type: ignore[call-overload]
-    if not prices:
-        return False
-    return price_cents < min(prices)
+    from app.storage import lowest_price
+
+    previous_low = lowest_price(session, listing_id, days=window_days, before=bound)
+    return previous_low is not None and price_cents < previous_low
 
 
 def recent_alert(
@@ -115,6 +108,7 @@ def evaluate_listing(
     *,
     now: datetime | None = None,
     current_ts: datetime | None = None,
+    previous_in_stock: bool | None = None,
 ) -> list[AlertEvent]:
     """对一个 listing 当前价评估所有相关订阅，生成（未去重前的）告警事件。
 
@@ -123,15 +117,21 @@ def evaluate_listing(
     current_ts：当前这条价格的快照时刻，传给 is_new_low 排除自身（见其 docstring）。
     """
     now = now or utc_now()
-    if listing.variant_id is None:
+    if listing.variant_id is None or not listing.active:
         return []
     subs = session.exec(
-        select(AlertSubscription).where(AlertSubscription.variant_id == listing.variant_id)
+        select(AlertSubscription).where(
+            AlertSubscription.variant_id == listing.variant_id, AlertSubscription.active
+        )
     ).all()
     events: list[AlertEvent] = []
     for sub in subs:
         kinds = load_json(sub.kinds_json, [])
-        if "price_below" in kinds and price_cents <= sub.target_price_cents:
+        if (
+            "price_below" in kinds
+            and sub.target_price_cents is not None
+            and price_cents <= sub.target_price_cents
+        ):
             if not recent_alert(session, sub.id, "price_below", now=now):
                 events.append(
                     create_alert_event(
@@ -168,4 +168,58 @@ def evaluate_listing(
                         now=now,
                     )
                 )
+        if "restock" in kinds and previous_in_stock is False:
+            if not recent_alert(session, sub.id, "restock", now=now):
+                events.append(
+                    create_alert_event(
+                        session,
+                        subscription_id=sub.id,
+                        variant_id=sub.variant_id,
+                        kind="restock",
+                        payload={
+                            "listing_id": listing.id,
+                            "price_cents": price_cents,
+                            "url": listing.url,
+                            "title": listing.title,
+                        },
+                        now=now,
+                    )
+                )
     return events
+
+
+def validate_alert_event(
+    session: Session, event: AlertEvent, *, now: datetime | None = None
+) -> tuple[dict | None, str]:
+    """排队或重发事件在发出前必须仍然成立；返回当前价，不沿用旧价格。"""
+    from app.offers import channel_quotes, current_cny_quotes
+    from app.storage import last_snapshot
+
+    now = now or utc_now()
+    sub = session.get(AlertSubscription, event.subscription_id)
+    if not sub or not sub.active or event.kind not in load_json(sub.kinds_json, []):
+        return None, "订阅已取消或不再包含该提醒类型"
+    if event.created_at < now - timedelta(hours=24):
+        return None, "提醒已超过24小时，请以当前报价为准"
+    original = load_json(event.payload_json, {})
+    offers = current_cny_quotes(channel_quotes(session, sub.variant_id))
+    offer = next((row for row in offers if row["listing_id"] == original.get("listing_id")), None)
+    if offer is None:
+        return None, "渠道已停用、报价待复核或当前库存不可确认"
+    price = offer["effective_cents"]
+    if event.kind == "price_below" and (
+        sub.target_price_cents is None or price > sub.target_price_cents
+    ):
+        return None, "当前到手价已超过目标价"
+    if event.kind == "new_low":
+        snap = last_snapshot(session, offer["listing_id"])
+        if not snap or not is_new_low(session, offer["listing_id"], price, now=now, before=snap.ts):
+            return None, "当前到手价已不满足历史新低条件"
+    return {
+        **original,
+        "kind": event.kind,
+        "price_cents": price,
+        "target_price_cents": sub.target_price_cents,
+        "url": offer["url"],
+        "title": offer["title"],
+    }, ""

@@ -14,12 +14,17 @@ from app.db import init_db
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    init_db(getattr(app.state, "db_engine", None))
     scheduler = None
-    if get_settings().scheduler_enabled:
+    if get_settings().scheduler_enabled and not getattr(app.state, "disable_scheduler", False):
         from app.scheduler import build_scheduler
 
-        scheduler = build_scheduler()
+        settings = get_settings()
+        scheduler = build_scheduler(
+            collect_interval_minutes=settings.collect_interval_minutes,
+            ingest_deals_interval_minutes=settings.ingest_deals_interval_minutes,
+        )
+    app.state.scheduler = scheduler
     yield
     if scheduler is not None:
         scheduler.shutdown(wait=False)

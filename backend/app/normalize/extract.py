@@ -44,31 +44,148 @@ BRAND_STYLE_PATTERNS: dict[str, re.Pattern[str]] = {
 
 COLOR_TERMS = [
     # 英文（品牌常用色名）
-    "black", "white", "grey", "gray", "navy", "blue", "royal blue", "sky blue",
-    "forest green", "olive green", "green", "khaki", "tan", "brown", "beige",
-    "red", "burgundy", "orange", "amber", "yellow", "gold", "purple", "violet",
-    "pink", "teal", "turquoise", "cyan", "military green", "camo", "camouflage",
-    "graphene grey", "osprey", "solitude", "pumice grey", "canyon brown",
+    "black",
+    "black heather",
+    "heather black",
+    "black sapphire",
+    "white",
+    "grey",
+    "gray",
+    "navy",
+    "blue",
+    "royal blue",
+    "sky blue",
+    "forest green",
+    "olive green",
+    "green",
+    "khaki",
+    "tan",
+    "brown",
+    "beige",
+    "red",
+    "burgundy",
+    "orange",
+    "amber",
+    "yellow",
+    "gold",
+    "purple",
+    "violet",
+    "pink",
+    "teal",
+    "turquoise",
+    "cyan",
+    "military green",
+    "camo",
+    "camouflage",
+    "graphene grey",
+    "osprey",
+    "solitude",
+    "pumice grey",
+    "canyon brown",
     # 中文
-    "黑色", "白色", "灰色", "深灰", "浅灰", "藏青", "海军蓝", "蓝色", "天蓝",
-    "森林绿", "橄榄绿", "军绿", "绿色", "卡其", "棕", "棕色", "米色", "红色",
-    "酒红", "砖红", "橙色", "琥珀", "黄色", "金色", "紫色", "粉", "粉色",
-    "青色", "湖蓝", "迷彩", "花灰",
+    "黑色",
+    "白色",
+    "灰色",
+    "深灰",
+    "浅灰",
+    "藏青",
+    "海军蓝",
+    "蓝色",
+    "天蓝",
+    "森林绿",
+    "橄榄绿",
+    "军绿",
+    "绿色",
+    "卡其",
+    "棕",
+    "棕色",
+    "米色",
+    "红色",
+    "酒红",
+    "砖红",
+    "橙色",
+    "琥珀",
+    "黄色",
+    "金色",
+    "紫色",
+    "粉",
+    "粉色",
+    "青色",
+    "湖蓝",
+    "迷彩",
+    "花灰",
 ]
-# 去重并按长度降序（长词优先匹配）
-_COLOR_LOOKUP = sorted(set(COLOR_TERMS), key=len, reverse=True)
-
 # ---------- 尺码 ----------
 
-LETTER_SIZE_RE = re.compile(
-    r"\b(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|5XL)\b"
-)
+LETTER_SIZE_RE = re.compile(r"\b(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|5XL)\b")
 US_SIZE_RE = re.compile(r"\bUS\s*(\d{1,2}(?:\.\d)?)\b", re.I)
 EU_SIZE_RE = re.compile(r"\bEU\s*(\d{2})\b", re.I)
 UK_SIZE_RE = re.compile(r"\bUK\s*(\d{1,2}(?:\.\d)?)\b", re.I)
 CN_SIZE_RE = re.compile(r"\b(\d{3}/\d{2,3}[A-Z]?)\b")  # 175/96A 国标码
 
 SIZE_ORDER = {"XS": 0, "S": 1, "M": 2, "L": 3, "XL": 4, "XXL": 5, "2XL": 5, "XXXL": 6, "3XL": 6}
+
+
+# 仅收录确认等价的色名；深浅色、品牌专有色不能按包含关系折叠。
+COLOR_ALIASES: dict[str, str] = {
+    "黑色": "black",
+    "白色": "white",
+    "灰色": "grey",
+    "gray": "grey",
+    "深灰": "dark grey",
+    "dark gray": "dark grey",
+    "浅灰": "light grey",
+    "light gray": "light grey",
+    "藏青": "navy",
+    "海军蓝": "navy",
+    "navy blue": "navy",
+    "蓝色": "blue",
+    "深蓝": "dark blue",
+    "浅蓝": "light blue",
+    "天蓝": "sky blue",
+    "深绿": "dark green",
+    "浅绿": "light green",
+    "森林绿": "forest green",
+    "橄榄绿": "olive green",
+    "军绿": "military green",
+    "绿色": "green",
+    "卡其": "khaki",
+    "棕": "brown",
+    "棕色": "brown",
+    "米色": "beige",
+    "红色": "red",
+    "酒红": "burgundy",
+    "砖红": "brick red",
+    "橙色": "orange",
+    "琥珀": "amber",
+    "黄色": "yellow",
+    "金色": "gold",
+    "紫色": "purple",
+    "粉": "pink",
+    "粉色": "pink",
+    "青色": "cyan",
+    "湖蓝": "lake blue",
+    "迷彩": "camo",
+    "camouflage": "camo",
+    "花灰": "heather grey",
+    "heather gray": "heather grey",
+}
+_COLOR_LOOKUP = sorted(
+    set(COLOR_TERMS) | set(COLOR_ALIASES) | set(COLOR_ALIASES.values()),
+    key=lambda term: (-len(term), term),
+)
+
+
+def normalize_color(color: str) -> str:
+    """规范化已知同义色名；未知色保留其完整名称，绝不按子串或相似度合并。"""
+    value = " ".join(color.lower().split())
+    return COLOR_ALIASES.get(value, value)
+
+
+def normalize_size(size: str) -> str:
+    """统一大小写、鞋码空格及字母码别名，保留不同鞋码体系。"""
+    value = "".join(size.upper().split())
+    return {"2XL": "XXL", "3XL": "XXXL"}.get(value, value)
 
 
 @dataclass
@@ -82,9 +199,7 @@ class ExtractedFeatures:
     reasons: list[str] = field(default_factory=list)
 
 
-def extract_style_number(
-    text: str, brand_slug: str = "", style_hint: str = ""
-) -> str:
+def extract_style_number(text: str, brand_slug: str = "", style_hint: str = "") -> str:
     """款号提取：hint 优先 → 品牌正则 → 通用 5 位数字。"""
     if style_hint and re.fullmatch(r"[0-9A-Z-]{4,12}", style_hint.strip().upper()):
         return style_hint.strip().upper()
@@ -113,7 +228,9 @@ def extract_color(text: str, color_hint: str = "") -> str:
         return color_hint.strip()
     lower = text.lower()
     for term in _COLOR_LOOKUP:
-        if term in lower:
+        # ASCII 字母边界允许“Black男款”，但不能把 Blackbird 当作 black。
+        pattern = rf"(?<![a-z]){re.escape(term)}(?![a-z])" if term.isascii() else re.escape(term)
+        if re.search(pattern, lower):
             return term
     return ""
 
@@ -144,8 +261,8 @@ def extract_features(
     """一站式提取。size_hint（来自 SKU 规格字段）优先于标题。"""
     feats = ExtractedFeatures(brand_slug=brand_slug)
     feats.style_number = extract_style_number(title, brand_slug, style_hint)
-    feats.color = extract_color(title, color_hint)
-    feats.size = size_hint.strip().upper() or extract_size(title)
+    feats.color = normalize_color(extract_color(title, color_hint))
+    feats.size = normalize_size(size_hint) or normalize_size(extract_size(title))
     if feats.style_number:
         feats.reasons.append(f"款号={feats.style_number}")
     if feats.color:

@@ -54,7 +54,7 @@ def test_deals_feed_order_and_shape(client, session):
     assert d["channel"] == "淘宝"
     assert d["variant"] is not None
     assert d["variant"]["brand_slug"] == "arcteryx"
-    assert d["variant"]["color"] == "黑色"
+    assert d["variant"]["color"] == "black"
     # 未匹配线报 variant 为 null
     assert deals[0]["variant"] is None
 

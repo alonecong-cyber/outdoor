@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b110d",
+  themeColor: "#1d4434",
   width: "device-width",
   initialScale: 1,
 };
@@ -41,8 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" className={`${archivo.variable} ${plexSans.variable} ${plexMono.variable}`}>
       <body className="grain">
         <TopoBackdrop />
-        <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-24 pt-6 md:max-w-5xl md:px-6 lg:max-w-6xl">
+        <a href="#page-content" className="skip-link">跳到正文</a>
+        <div className="app-shell" id="page-content">
           <QueryProvider>{children}</QueryProvider>
+          <footer className="site-footer"><span>OUTDOORDEAL · 为下一次出发做准备</span><span>线报供参考，价格与购买条件以渠道结算页为准。</span></footer>
         </div>
         <BottomNav />
       </body>

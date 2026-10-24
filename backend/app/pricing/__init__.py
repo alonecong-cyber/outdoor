@@ -3,6 +3,7 @@
 from app.pricing.engine import AppliedResult, StepResult, allocate_discount, apply_promos
 from app.pricing.filler import FillerItem, best_filler
 from app.pricing.overseas import OverseasInput, OverseasResult, calc_overseas
+from app.pricing.quotes import quote_listing
 from app.pricing.rules import APPLY_ORDER, Promo, PromoKind, PromoScope
 from app.pricing.solver import all_combinations, best_combination
 
@@ -22,4 +23,5 @@ __all__ = [
     "best_combination",
     "best_filler",
     "calc_overseas",
+    "quote_listing",
 ]

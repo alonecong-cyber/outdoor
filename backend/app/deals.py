@@ -21,15 +21,15 @@ from app.models import Brand, Deal, DealDraft, Style, Variant
 from app.normalize.brands import brand_display, clean_style_name, detect_brand
 from app.normalize.extract import extract_features
 from app.storage import get_or_create_brand, get_or_create_style, get_or_create_variant
-from app.util import dump_json
+from app.util import dump_json, to_naive_utc, utc_now
 
 # 线报标题常见的营销前缀，剥掉后再做核心词
 _TITLE_PREFIX_RE = re.compile(r"^(88VIP|今日必买|移动端|小编推荐|值友专享)[:：]\s*")
 
 
 def content_hash(draft: DealDraft) -> str:
-    raw = f"{draft.title}|{draft.price_cents}|{draft.channel}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    raw = draft.model_dump(exclude={"checked_at"}, mode="json")
+    return hashlib.sha256(dump_json(raw).encode("utf-8")).hexdigest()[:16]
 
 
 def grow_variant(session: Session, title: str) -> int | None:
@@ -64,8 +64,12 @@ def save_deal(
     deal = session.exec(
         select(Deal).filter_by(source=draft.source, source_id=draft.source_id)
     ).first()
+    checked_at = to_naive_utc(draft.checked_at) if draft.checked_at else utc_now()
     if deal is not None:
         if deal.content_hash == h:
+            deal.last_checked_at = checked_at
+            session.add(deal)
+            session.flush()
             return deal, False
         deal.title = draft.title
         deal.price_cents = draft.price_cents
@@ -94,10 +98,12 @@ def save_deal(
         )
         created = True
     deal.content_hash = h
-    if grow_catalog and deal.matched_variant_id is None:
+    deal.last_checked_at = checked_at
+    deal.expires_at = to_naive_utc(draft.expires_at) if draft.expires_at else None
+    deal.expired = draft.expired
+    if grow_catalog:
         variant_id = grow_variant(session, deal.title)
-        if variant_id is not None:
-            deal.matched_variant_id = variant_id
+        deal.matched_variant_id = variant_id
     session.add(deal)
     session.flush()
     return deal, created
@@ -112,12 +118,38 @@ def max_source_id(session: Session, source: str = "smzdm") -> int:
     return max(ids, default=0)
 
 
-def known_source_ids(session: Session, source: str = "smzdm") -> set[str]:
-    """已入库线报的 source_id 集合，品类页模式跳过它们避免重复抓详情。"""
+def known_source_ids(
+    session: Session, source: str = "smzdm", *, fresh_only: bool = False
+) -> set[str]:
+    """仅跳过复核期内的ID；旧内容仍可更新失效、价格与优惠条件。"""
+    from datetime import timedelta
+
+    from app.config import get_settings
+
+    stmt = select(Deal).where(Deal.source == source)
+    if fresh_only:
+        cutoff = utc_now() - timedelta(hours=get_settings().deal_recheck_hours)
+        stmt = stmt.where(Deal.last_checked_at.is_not(None), Deal.last_checked_at >= cutoff)
+    return {deal.source_id for deal in session.exec(stmt).all()}
+
+
+def reports_due_for_recheck(session: Session, *, limit: int = 2) -> list[Deal]:
+    from datetime import timedelta
+
+    from sqlalchemy import or_
+
+    from app.config import get_settings
+
+    cutoff = utc_now() - timedelta(hours=get_settings().deal_recheck_hours)
+    # 最近两周的线报有限轮询；更旧内容统一标注历史参考，不无限抓取。
+    recent = utc_now() - timedelta(days=14)
     rows = session.exec(
-        select(Deal.source_id).where(Deal.source == source)  # type: ignore[call-overload]
+        select(Deal).where(
+            Deal.source == "smzdm", Deal.created_at >= recent, Deal.url != "",
+            or_(Deal.last_checked_at.is_(None), Deal.last_checked_at < cutoff),
+        ).order_by(Deal.last_checked_at, Deal.id).limit(limit)
     ).all()
-    return set(rows)
+    return list(rows)
 
 
 def ingest_deals(
@@ -128,12 +160,13 @@ def ingest_deals(
     errors: list[str] = []
     for d in drafts:
         try:
-            deal, c = save_deal(session, d, grow_catalog=grow_catalog)
+            with session.begin_nested():
+                deal, c = save_deal(session, d, grow_catalog=grow_catalog)
+                is_matched = deal.matched_variant_id is not None
             saved += 1
             created += int(c)
-            matched += int(deal.matched_variant_id is not None)
+            matched += int(is_matched)
         except Exception as e:  # noqa: BLE001 - 单条失败继续
-            session.rollback()
             errors.append(f"{d.source_id}: {e}")
     session.commit()
     return {"saved": saved, "created": created, "matched": matched, "errors": errors}

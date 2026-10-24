@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.api.deps import get_db
 from app.api.schemas import (
@@ -14,7 +14,7 @@ from app.api.schemas import (
     QuoteOut,
     StepOut,
 )
-from app.models import Listing, PromoRule
+from app.models import Listing
 from app.pricing import (
     FillerItem,
     OverseasInput,
@@ -25,9 +25,8 @@ from app.pricing import (
     best_combination,
     best_filler,
     calc_overseas,
+    quote_listing,
 )
-from app.storage import last_snapshot
-from app.util import load_json
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
 
@@ -53,52 +52,22 @@ def _promo_in_to_promo(p: PromoIn) -> Promo:
     )
 
 
-def _rule_to_promo(rule: PromoRule) -> Promo:
-    scope = PromoScope(**load_json(rule.scope_json, {}))
-    return Promo(
-        id=f"rule-{rule.id}",
-        kind=PromoKind(rule.kind),
-        name=rule.name,
-        threshold_cents=rule.threshold_cents or 0,
-        amount_cents=rule.amount_cents or 0,
-        rate=rule.rate or 0.0,
-        cap_cents=rule.cap_cents or 0,
-        exclusive_group=rule.exclusive_group or "",
-        scope=scope,
-        valid_from=rule.valid_from,
-        valid_to=rule.valid_to,
-        source=rule.source or "db",
-    )
-
-
 @router.post("/quote", response_model=QuoteOut)
 def quote(body: QuoteIn, db: Session = Depends(get_db)) -> QuoteOut:
-    """单品单渠道最低到手价。listing_id 走库（含该渠道+平台级活动规则），
-    否则用请求体里的 base_price_cents + promos。"""
+    """listing_id 使用共享挂链报价；手工模式仅计算请求显式提供的优惠。"""
     if body.listing_id is not None:
         listing = db.get(Listing, body.listing_id)
         if listing is None:
             raise HTTPException(404, "listing 不存在")
-        snap = last_snapshot(db, listing.id)
-        if snap is None:
-            raise HTTPException(409, "listing 无价格快照")
-        rules = db.exec(
-            select(PromoRule).where(
-                PromoRule.active,  # type: ignore[arg-type]
-                PromoRule.channel_id.is_(None)  # type: ignore[union-attr]
-                | (PromoRule.channel_id == listing.channel_id),  # type: ignore[union-attr]
-            )
-        ).all()  # type: ignore[call-overload]
-        # 有效性（valid_from/to）由 Promo.is_valid_at 在引擎里过滤
-        promos = [_rule_to_promo(r) for r in rules]
-        base = snap.price_cents
+        try:
+            result = quote_listing(db, listing)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
     else:
         if body.base_price_cents <= 0:
             raise HTTPException(422, "base_price_cents 必须为正（或提供 listing_id）")
         promos = [_promo_in_to_promo(p) for p in body.promos]
-        base = body.base_price_cents
-
-    result = best_combination(base, promos)
+        result = best_combination(body.base_price_cents, promos)
     return QuoteOut(
         base_price_cents=result.base_cents,
         paid_now_cents=result.paid_now_cents,

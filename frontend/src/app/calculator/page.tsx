@@ -80,7 +80,7 @@ function CnQuote() {
       </label>
 
       <div className="space-y-2">
-        <p className="micro-label">优惠（引擎会枚举组合取最低）</p>
+        <p className="micro-label">可用优惠（按适用条件计算组合）</p>
         {rows.map((r, i) => (
           <div key={r.id} className="card grid grid-cols-2 gap-2 p-3 sm:grid-cols-6">
             <select
@@ -430,6 +430,7 @@ function CalculatorInner() {
   return (
     <main>
       <SiteHeader kicker="CALC" />
+      <div className="tool-intro rise"><p className="eyebrow">PRICE WORKSHOP / 一笔一笔，算清楚</p><h1>优惠条件看明白，到手价格算清楚。</h1><p>按实际可用优惠核算实付与返利。预填数据为计算示例，请替换成你的购买条件。</p></div>
       <div className="rise rise-1 mb-5 flex gap-2">
         {TABS.map((t) => (
           <button
@@ -437,7 +438,7 @@ function CalculatorInner() {
             type="button"
             onClick={() => setTab(t.id)}
             className={`btn rounded-full px-3.5 py-1.5 text-xs ${
-              tab === t.id ? "bg-accent text-[#140b06]" : "border border-line text-dim hover:text-ink"
+              tab === t.id ? "border border-ink bg-ink text-panel" : "border border-line text-dim hover:text-ink"
             }`}
           >
             {t.label}

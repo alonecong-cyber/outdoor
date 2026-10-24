@@ -8,9 +8,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.pricing.rules import Promo, PromoKind, sort_promos
+from app.util import utc_now
 
 
 class StepResult(BaseModel):
@@ -46,14 +49,19 @@ def _discount_of(promo: Promo, subtotal: int) -> int:
 
 
 def apply_promos(
-    base_cents: int, promos: list[Promo], *, skip_invalid: bool = True
+    base_cents: int,
+    promos: list[Promo],
+    *,
+    skip_invalid: bool = True,
+    now: datetime | None = None,
 ) -> AppliedResult:
     """把一组优惠按固定顺序应用到 base_cents 上。
 
-    skip_invalid=True 时过滤掉不在有效期内的规则。
+    skip_invalid=True 时按同一个 now 过滤不在有效期内的规则。
     门槛判断基于"当前订单金额"（前面优惠已扣减），符合真实结算顺序。
     """
-    active = [p for p in promos if p.is_valid_at()] if skip_invalid else list(promos)
+    at = now or utc_now()
+    active = [p for p in promos if p.is_valid_at(at)] if skip_invalid else list(promos)
     subtotal = base_cents
     rebate = 0
     steps: list[StepResult] = []
@@ -108,9 +116,7 @@ def apply_promos(
         if promo.kind in (PromoKind.REBATE, PromoKind.CASHBACK):
             # 返利按实付计算、事后到账，不动当下实付
             gain = (
-                promo.amount_cents
-                if promo.amount_cents > 0
-                else int(round(subtotal * promo.rate))
+                promo.amount_cents if promo.amount_cents > 0 else int(round(subtotal * promo.rate))
             )
             if promo.cap_cents > 0:
                 gain = min(gain, promo.cap_cents)

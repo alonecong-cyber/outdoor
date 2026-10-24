@@ -13,6 +13,7 @@ import hmac
 from collections.abc import Iterable
 
 from app.collectors.base import make_http_client
+from app.collectors.jd_union import _coupon_end
 from app.config import get_settings
 from app.models import CouponInfo, RawListing
 from app.util import utc_now
@@ -42,9 +43,7 @@ class TBKClient:
         page_size: int = 20,
     ) -> dict:
         if not self.app_key or not self.secret:
-            raise PermissionError(
-                "TAOBAO_APP_KEY / TAOBAO_APP_SECRET 未配置（backend/.env）"
-            )
+            raise PermissionError("TAOBAO_APP_KEY / TAOBAO_APP_SECRET 未配置（backend/.env）")
         s = get_settings()
         pid = s.taobao_pid or ""
         adzone = adzone_id or (pid.split("_")[-1] if pid else "")
@@ -71,9 +70,7 @@ def _cents(value) -> int:
     return int(round(float(value) * 100))
 
 
-def parse_material_optional(
-    payload: dict, *, channel_slug: str = "taobao"
-) -> list[RawListing]:
+def parse_material_optional(payload: dict, *, channel_slug: str = "taobao") -> list[RawListing]:
     """解析 tbk.dg.material.optional 响应 → RawListing（纯函数，测试走 fixtures）。"""
     body = payload.get(f"{METHOD.replace('.', '_')}_response") or {}
     if "error_response" in payload:
@@ -93,8 +90,12 @@ def parse_material_optional(
                     name=f"淘宝券 满{threshold / 100:.0f}减{amount / 100:.0f}",
                     amount_cents=amount,
                     threshold_cents=threshold,
-                    start_time=None,
-                    end_time=None,
+                    start_time=_coupon_end(m.get("coupon_start_time")),
+                    end_time=_coupon_end(
+                        str(m["coupon_end_time"]) + " 23:59:59"
+                        if len(str(m.get("coupon_end_time", ""))) == 10
+                        else m.get("coupon_end_time")
+                    ),
                 )
             )
         listings.append(
@@ -108,7 +109,9 @@ def parse_material_optional(
                 price_cents=_cents(m.get("zk_final_price")),
                 list_price_cents=_cents(m.get("reserve_price")),
                 currency="CNY",
-                in_stock=bool(m.get("volume", 0) >= 0),
+                merchant=m.get("nick") or m.get("shop_title") or "",
+                in_stock=m.get("in_stock") is True,
+                stock_verified=isinstance(m.get("in_stock"), bool),
                 coupons=coupons,
             )
         )

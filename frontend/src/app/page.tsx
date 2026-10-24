@@ -2,210 +2,34 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
+import { useQuery } from "@tanstack/react-query";
+import { BrowseControls } from "@/components/BrowseControls";
+import { DealCard, DealSkeletons } from "@/components/DealCard";
+import { Icon } from "@/components/Icon";
 import { SiteHeader } from "@/components/SiteHeader";
-import { api, type DealItem } from "@/lib/api";
-import { channelName, money, timeAgo } from "@/lib/format";
+import { StatusStrip } from "@/components/StatusStrip";
+import { api } from "@/lib/api";
+import { matchesCategory } from "@/lib/catalog";
 
-const BRANDS = [
-  { slug: "", label: "全部" },
-  { slug: "arcteryx", label: "始祖鸟" },
-  { slug: "the-north-face", label: "北面" },
-  { slug: "patagonia", label: "巴塔哥尼亚" },
-  { slug: "columbia", label: "哥伦比亚" },
-  { slug: "camel", label: "骆驼" },
-  { slug: "pelliot", label: "伯希和" },
-  { slug: "kailas", label: "凯乐石" },
-  { slug: "mammut", label: "猛犸象" },
-  { slug: "marmot", label: "土拨鼠" },
-];
-
-function DealCard({ deal, index }: { deal: DealItem; index: number }) {
-  const variant = deal.variant;
-  const ratingTag = deal.tags.find((t) => t.includes("好评率"));
-  const lowTag = deal.tags.find((t) => t.includes("新低") || t.includes("低价") || t.includes("低于"));
-  const hotTag = deal.tags.find((t) => t.includes("热度"));
-  // og:description 常是标题复读，开头与标题一致时不展示
-  const summary =
-    deal.summary && !deal.title.startsWith(deal.summary.slice(0, 10)) ? deal.summary : "";
-  return (
-    <li className={`rise rise-${(index % 5) + 1}`}>
-      <article className="card flex h-full flex-col overflow-hidden">
-        {deal.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={deal.image}
-            alt=""
-            loading="lazy"
-            className="aspect-[4/3] w-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
-          />
-        )}
-
-        <div className="flex flex-1 flex-col p-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-sm bg-panel-2 px-1.5 py-0.5 text-[11px] text-ink">
-              {channelName(deal.channel)}
-            </span>
-            {ratingTag && (
-              <span className="rounded-sm border border-moss/60 px-1.5 py-0.5 text-[11px] text-moss">
-                {ratingTag}
-              </span>
-            )}
-            {lowTag && (
-              <span className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent">
-                {lowTag}
-              </span>
-            )}
-            {hotTag && (
-              <span className="rounded-sm border border-line px-1.5 py-0.5 text-[11px] text-dim">
-                {hotTag}
-              </span>
-            )}
-            <span className="micro-label ml-auto">{timeAgo(deal.published_at)}</span>
-          </div>
-
-          <h2 className="mt-2.5 text-[15px] font-semibold leading-snug">{deal.title}</h2>
-          {summary && (
-            <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-dim">
-              {summary}
-            </p>
-          )}
-
-          <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
-            {deal.price_cents > 0 ? (
-              <span className="num font-display text-2xl font-bold text-accent">
-                {money(deal.price_cents, deal.currency)}
-              </span>
-            ) : (
-              <span className="micro-label">见原文</span>
-            )}
-            {variant && (
-              <Link
-                href={`/variants/${variant.variant_id}`}
-                className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent hover:bg-accent-soft/20"
-              >
-                {variant.brand_name} #{variant.style_number}
-              </Link>
-            )}
-            <a
-              href={deal.url}
-              target="_blank"
-              rel="noreferrer"
-              className="micro-label ml-auto shrink-0 text-dim hover:text-accent"
-            >
-              原文 ↗
-            </a>
-          </div>
-        </div>
-      </article>
-    </li>
-  );
-}
-
-/** 线报流首页：smzdm 优惠线报，商品从线报里长出来。 */
 export default function DealFeedPage() {
   const [brand, setBrand] = useState("");
-  const [q, setQ] = useState("");
-  const queryClient = useQueryClient();
-
-  const dealsQuery = useQuery({
-    queryKey: ["deals", brand],
-    queryFn: () => api.deals(brand ? { brand } : { limit: 100 }),
-  });
-
-  const ingest = useMutation({
-    mutationFn: () => api.ingestDeals(5),
-    onSuccess: (res) => {
-      void queryClient.invalidateQueries({ queryKey: ["deals"] });
-      void queryClient.invalidateQueries({ queryKey: ["variants"] });
-      return res;
-    },
-  });
-
-  const deals = dealsQuery.data ?? [];
-  const filtered = useMemo(
-    () => (q ? deals.filter((d) => d.title.toLowerCase().includes(q.toLowerCase())) : deals),
-    [deals, q],
-  );
-
-  const ingestNote = ingest.isPending
-    ? "正在拉取线报（约 1 分钟）…"
-    : ingest.isError
-      ? `拉取失败：${(ingest.error as Error).message}`
-      : ingest.data
-        ? ingest.data.ok
-          ? `新拉取 ${ingest.data.created} 条线报`
-          : `拉取失败：${ingest.data.errors[0] ?? "未知错误"}`
-        : null;
-
-  return (
-    <main>
-      <SiteHeader kicker="FEED" />
-
-      <div className="rise rise-1 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex flex-wrap gap-2">
-          {BRANDS.map((b) => (
-            <button
-              key={b.slug}
-              type="button"
-              onClick={() => setBrand(b.slug)}
-              className={`btn rounded-full px-3.5 py-1.5 text-xs ${
-                brand === b.slug
-                  ? "bg-accent text-[#140b06]"
-                  : "border border-line text-dim hover:text-ink"
-              }`}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <input
-          className="field sm:ml-auto sm:max-w-56"
-          placeholder="搜线报…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
-
-      <div className="rise rise-2 mb-4 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => ingest.mutate()}
-          disabled={ingest.isPending}
-          className="btn-primary w-full py-2.5 text-sm"
-        >
-          {ingest.isPending ? "拉取中…" : "⚡ 拉取最新线报"}
-        </button>
-      </div>
-      {ingestNote && <p className="micro-label mb-4">{ingestNote}</p>}
-
-      {dealsQuery.isLoading && <p className="micro-label">载入线报…</p>}
-      {dealsQuery.isError && (
-        <p className="text-sm text-accent">后端不可达：{(dealsQuery.error as Error).message}</p>
-      )}
-
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((d, i) => (
-          <DealCard key={d.id} deal={d} index={i} />
-        ))}
-      </ul>
-
-      {filtered.length === 0 && !dealsQuery.isLoading && !ingest.isPending && (
-        <div className="card rise rise-3 flex flex-col items-center gap-4 p-8 text-center">
-          <p className="text-sm text-dim">还没有线报。拉取一轮 smzdm 最新优惠，商品会自动从线报里长出来。</p>
-          <button
-            type="button"
-            onClick={() => ingest.mutate()}
-            className="btn-primary px-6 py-2.5 text-sm"
-          >
-            ⚡ 拉取最新线报
-          </button>
-        </div>
-      )}
-    </main>
-  );
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+  const deals = useQuery({ queryKey: ["deals", brand], queryFn: () => api.deals({ brand, limit: 100 }), staleTime: 60_000 });
+  const filtered = useMemo(() => (deals.data ?? []).filter((deal) => deal.title.toLowerCase().includes(query.trim().toLowerCase()) && matchesCategory(deal.title, category)), [deals.data, query, category]);
+  const reset = () => { setQuery(""); setBrand(""); setCategory("all"); };
+  return <main>
+    <SiteHeader kicker="DISCOVER" />
+    <section className="feed-hero rise">
+      <svg className="hero-landscape" viewBox="0 0 680 260" fill="none" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="m0 260 206-240 90 113 87-85 141 212H0Z" fill="#93ad7a" opacity=".13" /><path d="m125 260 215-240 68 98 82-63 190 205H125Z" fill="#b8c38c" opacity=".15" /><path d="M-20 216 110 155 173 184 339 20 405 119 489 56 700 256M-20 239 110 177 175 205 338 45 402 145 488 80 680 267M-20 260 112 200 179 227 338 71 401 171 488 107 659 279M91 275 180 250 338 97 397 198 489 135 636 285M219 275 339 124 395 223 489 162 615 291M240 287 339 151 393 249 490 190 595 299M268 299 339 178 390 275 491 219 573 307" stroke="#dce7bc" strokeWidth=".7" /><circle cx="540" cy="57" r="22" stroke="#dce7bc" strokeWidth=".7" /><path d="M540 28v11m0 36v11m-29-29h11m36 0h11" stroke="#dce7bc" strokeWidth=".7" /></svg>
+      <div><p className="eyebrow">GOOD GEAR. CLEAR PRICES. / 户外装备价格手册</p><h1>装备选得对，<br /><span>下一程走得远。</span></h1><p>看清价格、规格和优惠条件，<br className="sm:hidden" />为每一次出发认真挑选。</p></div>
+      <div className="hero-aside"><span className="field-note">BE READY<br />FOR OUT THERE.</span><p>从一条优惠线索，找到适合自己的装备。</p><Link className="text-link" href="/variants">逛逛装备目录<Icon name="arrow" /></Link></div>
+    </section>
+    <StatusStrip />
+    <BrowseControls query={query} setQuery={setQuery} brand={brand} setBrand={setBrand} category={category} setCategory={setCategory} />
+    <section aria-labelledby="latest-deals"><div className="section-heading"><h2 id="latest-deals">出发前的好价线索<small>{deals.data ? `${filtered.length} 条` : "FIELD NOTES"}</small></h2><span>最新入库 · 按标题分类</span></div>
+      {deals.isPending ? <DealSkeletons /> : deals.isError ? <div className="empty-state"><Icon name="mountain" /><h2>优惠暂时没有加载出来</h2><p>连接恢复后可重新载入已有线报。</p><button type="button" className="btn btn-ghost" onClick={() => void deals.refetch()}>重新加载</button></div> : filtered.length > 0 ? <ul className="deal-grid">{filtered.map((deal, index) => <DealCard key={deal.id} deal={deal} index={index} />)}</ul> : <div className="empty-state"><Icon name="search" /><h2>{deals.data?.length || brand || query || category !== "all" ? "暂时没有符合条件的装备" : "优惠线索正在准备中"}</h2><p>{brand || query || category !== "all" ? "试试其他关键词，或查看全部装备。" : "线报由后台更新。新的优惠入库后，会出现在这里。"}</p>{(brand || query || category !== "all") && <button type="button" className="btn btn-ghost" onClick={reset}>清除筛选</button>}</div>}
+      <p className="results-note">线报价格来自来源文章，可能已过期或附有特定条件。进入详情核对适用规格、优惠说明与核验状态。</p>
+    </section>
+  </main>;
 }

@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from app.collectors.base import make_http_client
 from app.config import get_settings
@@ -36,9 +38,7 @@ class JDUnionClient:
 
     def query_goods(self, keywords: str, page_size: int = 30) -> dict:
         if not self.app_key or not self.secret:
-            raise PermissionError(
-                "JD_UNION_APP_KEY / JD_UNION_SECRET_KEY 未配置（backend/.env）"
-            )
+            raise PermissionError("JD_UNION_APP_KEY / JD_UNION_SECRET_KEY 未配置（backend/.env）")
         param_json = (
             f'{{"goodsReqDTO":{{"keyword":"{keywords}","pageSize":{page_size},"pageIndex":1}}}}'
         )
@@ -64,12 +64,21 @@ def _cents(value) -> int:
     return int(round(float(value) * 100))
 
 
-def _coupon_end(raw: str | None) -> datetime | None:
-    if not raw:
+def _coupon_end(raw: str | int | float | None) -> datetime | None:
+    if raw in (None, ""):
         return None
     try:
-        return datetime.strptime(raw[:19], "%Y-%m-%d %H:%M:%S")
-    except ValueError:
+        text = str(raw).strip()
+        if text.replace(".", "", 1).isdigit():
+            stamp = float(text)
+            return datetime.fromtimestamp(stamp / 1000 if stamp > 10**11 else stamp, UTC).replace(
+                tzinfo=None
+            )
+        value = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+        return value.astimezone(UTC).replace(tzinfo=None)
+    except (ValueError, OverflowError, OSError):
         return None
 
 
@@ -78,9 +87,12 @@ def parse_goods_query(payload: dict, *, channel_slug: str = "jd") -> list[RawLis
     # 注意 JOS 返回键名固定拼写为 "responce"（平台历史 typo，勿改）
     body = payload.get(f"{METHOD.replace('.', '_')}_responce", {})
     query_result = body.get("queryResult") or {}
-    if query_result.get("code") not in (0, "0"):
+    if isinstance(query_result, str):
+        query_result = json.loads(query_result)
+    if query_result.get("code") not in (0, "0", 200, "200"):
         raise ValueError(f"京东联盟返回错误: {query_result.get('message')}")
-    goods_list = (query_result.get("data") or {}).get("list") or []
+    data = query_result.get("data") or []
+    goods_list = data if isinstance(data, list) else data.get("list", [])
 
     listings: list[RawListing] = []
     for g in goods_list:
@@ -108,10 +120,16 @@ def parse_goods_query(payload: dict, *, channel_slug: str = "jd") -> list[RawLis
                 url=g.get("materialUrl") or g.get("detailUrl") or "",
                 title=g.get("goodsName") or "",
                 image=images[0].get("url", "") if images else "",
+                merchant=(g.get("shopInfo") or {}).get("shopName", ""),
+                stock_verified="stockState" in g or isinstance(g.get("in_stock"), bool),
                 price_cents=_cents(price_info.get("price")),
                 list_price_cents=_cents(price_info.get("lowestPrice")),
                 currency="CNY",
-                in_stock=bool(g.get("goodsStatus", 1) in (1, "1", None)),
+                in_stock=(
+                    str(g["stockState"]) in {"33", "40"}
+                    if "stockState" in g
+                    else g.get("in_stock", g.get("goodsStatus", 1) in (1, "1", None))
+                ),
                 coupons=coupons,
             )
         )

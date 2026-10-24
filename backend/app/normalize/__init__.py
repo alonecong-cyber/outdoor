@@ -6,6 +6,8 @@ from app.normalize.extract import (
     extract_features,
     extract_size,
     extract_style_number,
+    normalize_color,
+    normalize_size,
 )
 from app.normalize.matcher import (
     REVIEW_THRESHOLD,
@@ -26,4 +28,6 @@ __all__ = [
     "extract_style_number",
     "match_raw_listing",
     "match_variant",
+    "normalize_color",
+    "normalize_size",
 ]
