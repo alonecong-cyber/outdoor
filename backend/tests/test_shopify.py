@@ -89,3 +89,29 @@ def test_name_tokens_ignore_brand_and_possessive():
     a = _name_tokens("Arc'teryx Beta AR Jacket - Men's", {"arc", "teryx"})
     b = _name_tokens("Beta AR Jacket Men's", {"arc", "teryx"})
     assert a == b == {"beta", "ar", "jacket", "men"}
+
+
+def test_discounted_deal_drafts_and_ingest(tmp_path):
+    from app.collectors.shopify import discounted_deal_drafts, ingest_discount_deals
+
+    payload = load_json(FIXTURE.read_text(), {})
+    raws = parse_products_json(payload, channel_slug="evo_us", base_url="https://www.evo.com")
+    drafts = discounted_deal_drafts(raws)
+    assert drafts, "fixture 应包含在售折扣商品"
+    draft, variants = drafts[0]
+    assert draft.source == "evo" and draft.currency == "USD"
+    assert draft.price_cents < 65000  # 折扣价
+    assert "原价" in draft.summary and "现价" in draft.summary
+
+    engine = get_engine(tmp_path / "t2.db")
+    init_db(engine)
+    with Session(engine) as session:
+        result = ingest_discount_deals(session, raws)
+        assert result["saved"] == len(drafts) and result["matched"] == len(drafts)
+        again = ingest_discount_deals(session, raws)  # 幂等：同内容不重复
+        assert again["saved"] == len(drafts) and again["created"] == 0
+        from app.models import Deal
+
+        deals = session.exec(select(Deal).where(Deal.source == "evo")).all()
+        assert len(deals) == len(drafts)
+        assert all(d.matched_variant_id for d in deals)

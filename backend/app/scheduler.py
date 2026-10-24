@@ -289,6 +289,25 @@ def _default_session() -> Session:
     return Session(get_engine())
 
 
+# 折扣线报的 Shopify 零售商目录（robots 允许爬公开商品接口）。
+SHOPIFY_DEAL_SOURCES = [
+    ("evo_us", "https://www.evo.com/collections/arc-teryx/products.json"),
+]
+
+
+def refresh_shopify_deals(session: Session) -> dict:
+    """拉 Shopify 零售商目录，把在售折扣商品落成线报。失败不拖垮 deals_job。"""
+    try:
+        from app.collectors.base import make_http_client
+        from app.collectors.shopify import ShopifyCollector, ingest_discount_deals
+
+        collector = ShopifyCollector(targets=list(SHOPIFY_DEAL_SOURCES))
+        raws = list(collector.collect(make_http_client(timeout=30, follow_redirects=True)))
+        return ingest_discount_deals(session, raws)
+    except Exception as e:  # noqa: BLE001 - 线报任务整体不因单源失败中断
+        return {"ok": False, "error": repr(e)}
+
+
 def _job_session(db_path: str, runtime_key: str) -> Session:
     factory = _SESSION_FACTORIES.get(runtime_key)
     return factory() if factory else Session(get_engine(Path(db_path)))
@@ -314,6 +333,9 @@ def deals_job(db_path: str, runtime_key: str = "") -> None:
         result = ingest_smzdm_deals(session, max_details=get_settings().ingest_deals_max_details)
         if not result.get("ok"):
             logger.warning("线报更新失败: %s", result)
+        shopify = refresh_shopify_deals(session)
+        if shopify.get("ok") is False:
+            logger.warning("Shopify 折扣线报更新失败: %s", shopify)
 
 
 def build_scheduler(
