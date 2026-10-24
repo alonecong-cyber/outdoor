@@ -180,6 +180,38 @@ def _jsonld_product(doc) -> dict | None:
     return None
 
 
+def _jsonld_product_group(doc) -> dict | None:
+    """找 schema.org ProductGroup（如 arcteryx.com：hasVariant 挂颜色×尺码 Product）。"""
+    candidates = doc if isinstance(doc, list) else [doc]
+    for node in candidates:
+        if not isinstance(node, dict):
+            continue
+        if node.get("@graph"):
+            found = _jsonld_product_group(node["@graph"])
+            if found:
+                return found
+        types = node.get("@type") or []
+        types = types if isinstance(types, list) else [types]
+        if "ProductGroup" in types and isinstance(node.get("hasVariant"), list):
+            return node
+    return None
+
+
+_VARIANT_NAME_RE = re.compile(r"^(?P<name>.+?),\s*(?P<color>[^,]+),\s*Size\s+(?P<size>\S+)\s*$")
+
+
+def _variant_color_size(variant: dict) -> tuple[str, str]:
+    """变体颜色/尺码：显式字段优先，其次从 name 末段解析（"…, Cloud / Void, Size XL"）。"""
+    color = str(variant.get("color") or "").strip()
+    size = str(variant.get("size") or "").strip()
+    if not (color and size):
+        m = _VARIANT_NAME_RE.match(str(variant.get("name") or ""))
+        if m:
+            color = color or m.group("color").strip()
+            size = size or (m.group("size") or "").strip()
+    return color, size
+
+
 def _jsonld_offers(product: dict) -> dict:
     offers = product.get("offers")
     if isinstance(offers, list):
@@ -197,37 +229,72 @@ def _jsonld_image(product: dict) -> str:
     return str(image) if image else ""
 
 
-def parse_jsonld_product(script_bodies: list[str], *, url: str = "") -> dict:
-    """从 JSON-LD script 列表提取 Product 字段。失败抛 ProductParseError。"""
+def _product_fields(product: dict, *, url: str, brand: str = "") -> dict:
+    """schema.org Product 节点 → 统一字段 dict。"""
+    offers = _jsonld_offers(product)
+    brand_value = product.get("brand")
+    if isinstance(brand_value, dict):
+        brand_value = brand_value.get("name", "")
+    brand = str(brand_value or brand or "")
+    style = str(product.get("style") or "")
+    price = offers.get("price") or offers.get("lowPrice") or product.get("price")
+    currency = offers.get("priceCurrency") or "USD"
+    availability = str(offers.get("availability") or "")
+    in_stock = "InStock" in availability or "InStoreOnly" in availability
+    return {
+        "name": product.get("name") or "",
+        "brand": brand,
+        "style": style,
+        "sku": str(product.get("sku") or product.get("productID") or ""),
+        "color": product.get("color") or "",
+        "size": product.get("size") or "",
+        "image": _jsonld_image(product),
+        "price": float(price) if price not in (None, "") else None,
+        "currency": currency,
+        "in_stock": in_stock,
+        "url": url,
+    }
+
+
+def parse_jsonld_variants(script_bodies: list[str], *, url: str = "") -> list[dict]:
+    """JSON-LD → 变体字段列表。
+
+    - 普通 Product：返回单元素列表；
+    - ProductGroup（arcteryx.com 等官网）：hasVariant 每个颜色×尺码一条，
+      颜色/尺码从变体 name（"…, Cloud / Void, Size XL"）解析，品牌/图取组级兜底。
+    """
     for body in script_bodies:
         try:
             doc = json.loads(body)
         except json.JSONDecodeError:
             continue
+        group = _jsonld_product_group(doc)
+        if group:
+            group_brand = group.get("brand")
+            if isinstance(group_brand, dict):
+                group_brand = group_brand.get("name", "")
+            group_style = str(group.get("productGroupID") or "")
+            fields_list = []
+            for variant in group["hasVariant"]:
+                if not isinstance(variant, dict):
+                    continue
+                fields = _product_fields(variant, url=url, brand=str(group_brand or ""))
+                fields["style"] = fields["style"] or group_style
+                color, size = _variant_color_size(variant)
+                fields["color"] = fields["color"] or color
+                fields["size"] = fields["size"] or size
+                fields_list.append(fields)
+            if fields_list:
+                return fields_list
         product = _jsonld_product(doc)
-        if not product:
-            continue
-        offers = _jsonld_offers(product)
-        brand = product.get("brand")
-        if isinstance(brand, dict):
-            brand = brand.get("name", "")
-        price = offers.get("price") or offers.get("lowPrice") or product.get("price")
-        currency = offers.get("priceCurrency") or "USD"
-        availability = str(offers.get("availability") or "")
-        in_stock = "InStock" in availability or "InStoreOnly" in availability
-        return {
-            "name": product.get("name") or "",
-            "brand": brand or "",
-            "sku": str(product.get("sku") or product.get("productID") or ""),
-            "color": product.get("color") or "",
-            "size": "",
-            "image": _jsonld_image(product),
-            "price": float(price) if price not in (None, "") else None,
-            "currency": currency,
-            "in_stock": in_stock,
-            "url": url,
-        }
+        if product:
+            return [_product_fields(product, url=url)]
     raise ProductParseError("页面无可用 JSON-LD Product")
+
+
+def parse_jsonld_product(script_bodies: list[str], *, url: str = "") -> dict:
+    """从 JSON-LD script 列表提取 Product 字段。失败抛 ProductParseError。"""
+    return parse_jsonld_variants(script_bodies, url=url)[0]
 
 
 # ---------- CSS / meta 兜底 ----------
@@ -271,12 +338,17 @@ JSONLD_SCRIPT_RE = re.compile(
 
 
 def parse_product_page(html: str, *, url: str = "") -> dict:
-    """单品页 → 字段 dict。JSON-LD 优先，meta 兜底。"""
+    """单品页 → 字段 dict（首个变体）。JSON-LD 优先，meta 兜底。"""
+    return parse_product_variants(html, url=url)[0]
+
+
+def parse_product_variants(html: str, *, url: str = "") -> list[dict]:
+    """单品页 → 变体字段列表（ProductGroup 时为全部颜色×尺码）。"""
     bodies = [m.group(1).strip() for m in JSONLD_SCRIPT_RE.finditer(html)]
     try:
-        return parse_jsonld_product(bodies, url=url)
+        return parse_jsonld_variants(bodies, url=url)
     except ProductParseError:
-        return parse_meta_fallback(html, url=url)
+        return [parse_meta_fallback(html, url=url)]
 
 
 def _cents(price: float | None) -> int:
@@ -292,12 +364,36 @@ def looks_like_block_or_login(html: str) -> bool:
     return any(m in lower for m in markers)
 
 
-def fetch_product(
+def _raw_listing(fields: dict, url: str) -> RawListing:
+    return RawListing(
+        source="web_product",
+        channel_slug="",
+        external_id=fields["sku"] or url,
+        url=url,
+        title=fields["name"],
+        image=fields.get("image", ""),
+        brand_hint=fields["brand"],
+        style_number_hint=fields.get("style") or fields["sku"],
+        color_hint=fields["color"],
+        size_hint=fields["size"],
+        price_cents=_cents(fields["price"]),
+        list_price_cents=0,
+        currency=fields["currency"],
+        in_stock=fields["in_stock"],
+        coupons=[],
+        collected_at=utc_now(),
+    )
+
+
+def fetch_products(
     url: str,
     client: httpx.Client,
     rate_limiter: HostRateLimiter,
-) -> RawListing | None:
-    """抓单个官网商品页 → RawListing。robots 不允许/风控页 → None。"""
+) -> list[RawListing] | None:
+    """抓单个官网商品页 → RawListing 列表（ProductGroup 拆为各颜色×尺码）。
+
+    robots 不允许/风控页 → None。
+    """
     host = urlsplit(url).netloc
     if not robots_allows(url, fetch_robots_txt(url, client)):
         return None
@@ -307,24 +403,17 @@ def fetch_product(
     html = resp.text
     if looks_like_block_or_login(html):
         return None
-    fields = parse_product_page(html, url=url)
-    return RawListing(
-        source="web_product",
-        channel_slug="",
-        external_id=fields["sku"] or url,
-        url=url,
-        title=fields["name"],
-        image=fields.get("image", ""),
-        brand_hint=fields["brand"],
-        style_number_hint=fields["sku"],
-        color_hint=fields["color"],
-        price_cents=_cents(fields["price"]),
-        list_price_cents=0,
-        currency=fields["currency"],
-        in_stock=fields["in_stock"],
-        coupons=[],
-        collected_at=utc_now(),
-    )
+    return [_raw_listing(f, url) for f in parse_product_variants(html, url=url)]
+
+
+def fetch_product(
+    url: str,
+    client: httpx.Client,
+    rate_limiter: HostRateLimiter,
+) -> RawListing | None:
+    """抓单个官网商品页 → 首个 RawListing。robots 不允许/风控页 → None。"""
+    listings = fetch_products(url, client, rate_limiter)
+    return listings[0] if listings else None
 
 
 class WebProductCollector:
@@ -342,10 +431,11 @@ class WebProductCollector:
         client = client or make_http_client(timeout=30, follow_redirects=True)
         for channel_slug, url in self.targets:
             try:
-                raw = fetch_product(url, client, self.rate_limiter)
+                listings = fetch_products(url, client, self.rate_limiter)
             except (httpx.HTTPError, ProductParseError):
                 # 单个 URL 失败不拖垮整批；退避重试留给上层调度
                 continue
-            if raw is not None:
-                raw.channel_slug = channel_slug
-                yield raw
+            if listings:
+                for raw in listings:
+                    raw.channel_slug = channel_slug
+                    yield raw

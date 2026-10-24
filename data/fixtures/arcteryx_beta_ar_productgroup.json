@@ -1,0 +1,372 @@
+{
+  "@context": "https://schema.org/",
+  "@type": "ProductGroup",
+  "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062",
+  "name": "Beta AR Jacket Men's",
+  "description": "Durable, breathable, weatherproof GORE-TEX PRO ePE shell for all-round mountain use.",
+  "url": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062",
+  "category": "Shell Jackets",
+  "releaseDate": "2025-01-01",
+  "brand": {
+    "@type": "Brand",
+    "name": "Arc'teryx"
+  },
+  "audience": {
+    "@type": "PeopleAudience",
+    "suggestedGender": "male"
+  },
+  "productGroupID": "X000011062",
+  "material": "Body: 100d 3L GORE-TEX® PRO ePE, recycled plain weave, 136 gsm, FC0 DWR - 100% Nylon with ePE and PU Membrane 100% Nylon Backing, Origin of fabric: CHINA, Origin of dyeing: CHINA, Origin of Manufacture: VIETNAM, May release plastic microfibres into the environment when washing",
+  "variesBy": [
+    "https://schema.org/color",
+    "https://schema.org/size"
+  ],
+  "hasVariant": [
+    {
+      "@type": "Product",
+      "name": "Beta AR Jacket Men's, Cloud / Void, Size XL",
+      "description": "From frigid winter hikes to bluebird days in the backcountry, the Beta AR Jacket rises to the challenge. Your go-to hardshell for every mountain mission, its hybrid construction holds up to snow, sleet, and strong summit winds. Ultra durable GORE-TEX PRO ePE on the yoke and arms resists abrasion, while a lighter version on the body reduces weight and bulk. The result? A fully featured jacket that delivers what you need, where you need it.",
+      "sku": "X000011062012",
+      "mpn": "X000011062012",
+      "image": "https://images.arcteryx.com/details/1350x1710/F26-X000011062-Beta-AR-Jacket-Cloud-Void-Front-View.jpg",
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "USD",
+        "price": 650,
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/InStock",
+        "hasMerchantReturnPolicy": {
+          "@id": "#return_policy"
+        },
+        "url": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062"
+      },
+      "gtin14": "00623555916796",
+      "color": "Cloud / Void",
+      "size": "XL"
+    },
+    {
+      "@type": "Product",
+      "name": "Beta AR Jacket Men's, Rune / Sea Salt, Size XL",
+      "description": "From frigid winter hikes to bluebird days in the backcountry, the Beta AR Jacket rises to the challenge. Your go-to hardshell for every mountain mission, its hybrid construction holds up to snow, sleet, and strong summit winds. Ultra durable GORE-TEX PRO ePE on the yoke and arms resists abrasion, while a lighter version on the body reduces weight and bulk. The result? A fully featured jacket that delivers what you need, where you need it.",
+      "sku": "X000011062047",
+      "mpn": "X000011062047",
+      "image": "https://images.arcteryx.com/details/1350x1710/F26-X000011062-Beta-AR-Jacket-Rune-Sea-Salt-Front-View.jpg",
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "USD",
+        "price": 650,
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/InStock",
+        "hasMerchantReturnPolicy": {
+          "@id": "#return_policy"
+        },
+        "url": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062"
+      },
+      "gtin14": "00623555997108",
+      "color": "Rune / Sea Salt",
+      "size": "XL"
+    },
+    {
+      "@type": "Product",
+      "name": "Beta AR Jacket Men's, Nucleus / Larch, Size S",
+      "description": "From frigid winter hikes to bluebird days in the backcountry, the Beta AR Jacket rises to the challenge. Your go-to hardshell for every mountain mission, its hybrid construction holds up to snow, sleet, and strong summit winds. Ultra durable GORE-TEX PRO ePE on the yoke and arms resists abrasion, while a lighter version on the body reduces weight and bulk. The result? A fully featured jacket that delivers what you need, where you need it.",
+      "sku": "X000011062030",
+      "mpn": "X000011062030",
+      "image": "https://images.arcteryx.com/details/1350x1710/F26-X000011062-Beta-AR-Jacket-Nucleus-Larch-Front-View.jpg",
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "USD",
+        "price": 650,
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/InStock",
+        "hasMerchantReturnPolicy": {
+          "@id": "#return_policy"
+        },
+        "url": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062"
+      },
+      "gtin14": "00623555916970",
+      "color": "Nucleus / Larch",
+      "size": "S"
+    }
+  ],
+  "hasMerchantReturnPolicy": {
+    "@type": "MerchantReturnPolicy",
+    "@id": "#return_policy",
+    "applicableCountry": "US",
+    "merchantReturnDays": 30,
+    "merchantReturnLink": "https://arcteryx.com/us/en/account/returns",
+    "returnFees": "https://schema.org/FreeReturn",
+    "returnMethod": "https://schema.org/ReturnByMail",
+    "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": 4.2,
+    "reviewCount": 267,
+    "bestRating": 5
+  },
+  "review": [
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#185711388",
+      "name": "Hiking in the rain",
+      "reviewBody": "Bought this in for my hiking trip this past October and during one of the hikes it rained the entire 9 mile hike and it kept me dry. Great jacket that kept me dry the entire time and packs down fairly small.",
+      "dateCreated": "2026-10-22T20:18:34.000+00:00",
+      "datePublished": "2026-10-22T20:45:14.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 5,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Carlos"
+      },
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Quality of Product",
+          "value": "5",
+          "maxValue": "5"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Comfort",
+          "value": "5",
+          "maxValue": "5"
+        }
+      ]
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#185624915",
+      "name": "Perfect shell",
+      "reviewBody": "I recently purchased the beta and  Sperro sv and the beta fits much better.  It’s the perfect jacket for mountain work here in az.  The Sperro sv is too large to even wear so I’m not sure what to do with that one.  Please try them on first.  The Beta is amazing.",
+      "dateCreated": "2026-10-19T17:14:38.000+00:00",
+      "datePublished": "2026-10-19T17:30:10.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 5,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "The only shell you need"
+      }
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#185561037",
+      "name": "Veste extraordinaire, mais…",
+      "reviewBody": "Très durable (ma première Beta AR a duré 10 ans avant que le tissu intérieur soit élimé, et je la porte aussi bien en rando qu'au quotidien), admirablement coupée, très efficace sous la pluie, relativement légère. Par contre, le prix pique vraiment fort pour un produit fabriqué en Asie du Sud-Est, et a beaucoup augmenté ces dernières années. La veste parfaite pour moi, mais devenue bien trop chère…",
+      "dateCreated": "2026-10-16T21:34:06.000+00:00",
+      "datePublished": "2026-10-20T16:00:14.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 4,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Ricercar"
+      },
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Quality of Product",
+          "value": "5",
+          "maxValue": "5"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Comfort",
+          "value": "5",
+          "maxValue": "5"
+        }
+      ]
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#185527879",
+      "name": "New Beta AR replaces vintage Theta AR",
+      "reviewBody": "The jacket looks impeccable. Exactly as described and precisely what I was looking for in a replacement for a vintage Theta AR that required retirement. The fit, finish, styling, functionality and highly anticipated waterproofing, breathability and durability are Class A.",
+      "dateCreated": "2026-10-15T13:59:26.000+00:00",
+      "datePublished": "2026-10-15T14:15:14.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 5,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "JodyW"
+      },
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Quality of Product",
+          "value": "5",
+          "maxValue": "5"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Comfort",
+          "value": "5",
+          "maxValue": "5"
+        }
+      ]
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#185185426",
+      "name": "A serious piece of equipment",
+      "reviewBody": "This jacket‘s quality is fkin awesome! I can’t see an itsy-bitsy minor imperfection. All seams n‘zippers are perfect. \n\nIf you buy true to size, layering might make you feel the BETA AR. For wearing a puffy jacket under the BETA AR, I highly recommend going up one size. Don’t bother about arm length then! The velcro adjustable sleeves will make the jacket fit and look perfectly.\n\nThe BETA AR IS A STRONG BUY. :)",
+      "dateCreated": "2026-09-30T15:47:20.000+00:00",
+      "datePublished": "2026-10-05T15:30:16.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 5,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "El_G0rdo"
+      },
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Quality of Product",
+          "value": "5",
+          "maxValue": "5"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Comfort",
+          "value": "5",
+          "maxValue": "5"
+        }
+      ]
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#185067024",
+      "name": "Review",
+      "reviewBody": "I just got back from the UK which is why I ordered this. Unfortunately, it arrived on the day that I was in the air due to shipping delays so, I did not have it for the trip. I had one of these before and this is a good fit with the exception of it being rather long in the arm. I am 6 feet tall and of normal build for that height so was surprised by this.",
+      "dateCreated": "2026-09-24T19:25:18.000+00:00",
+      "datePublished": "2026-10-14T10:17:29.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 4,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Gaere"
+      }
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#184790111",
+      "name": "Sizing issue",
+      "reviewBody": "I’ve picked up quite a few Arc'teryx pieces over these past three years. But ever since production shifted to Vietnam, their sizing system has become an absolute disaster. I got a Beta SL in size M, and it was far too tight. I had to size up to Large, yet the Large fits like an impossibly oversized robe draped over me. I miss the days when these were made in  Indonesia or China. Moving all production to Vietnam is only going to ruin this brand. Arc'teryx can tweak their patterns all they want; I will only ever be deciding between M and Large. The Indonesian-made Gamma pants and other gear I owned in size M were spot on. Since switching to Vietnam production, none of the items I purchased fit properly. Sales strategies in certain regions have become completely disconnected from the product, shifting their full focus to cost control and profit maximization. These moves will ruin the brand sooner or later. That’s right. I’m talking about Arc'teryx’s China team, under its parent company Anta.",
+      "dateCreated": "2026-09-14T04:47:10.000+00:00",
+      "datePublished": "2026-10-17T18:14:46.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 2,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "LAN  J"
+      },
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Quality of Product",
+          "value": "2",
+          "maxValue": "5"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Comfort",
+          "value": "2",
+          "maxValue": "5"
+        }
+      ],
+      "comment": [
+        {
+          "@type": "Comment",
+          "text": "Hi there, thank you for taking the time to share your feedback. We're sorry to hear that you've had difficulty finding the right fit across different products. We understand how frustrating it can be when a size that has worked well for you in the past no longer provides the expected fit. While manufacturing location does not determine a product's fit, patterns, materials, and intended fit can vary between styles and product generations. To help compare sizing, we recommend reviewing the sizing chart and fit information available on each product page, as these provide guidance on the garment's intended fit and key measurements. If you have the possibility, visiting a retail store to try on different options can also be a helpful way to find the best fit. We appreciate you sharing your experience, and feedback like yours helps us better understand how our products are fitting for our guests.",
+          "datePublished": "2026-09-14T18:30:04.000+00:00",
+          "author": {
+            "@type": "Organization",
+            "name": "arcteryx"
+          },
+          "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#184790111-bv-response-184790111",
+          "parentItem": {
+            "@type": "Review",
+            "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#184790111"
+          }
+        }
+      ],
+      "commentCount": 1
+    },
+    {
+      "@type": "Review",
+      "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#184763001",
+      "name": "Set low expectations",
+      "reviewBody": "If you have a problem with your Arcteryx jacket, don’t plan on them helping you. I have a Beta AR that clearly has multiple failures with the adhesive seams. They literally came apart. When I contacted Arcteryx they refused to help because I had made repairs myself - while on vacation - and that voided the warranty. Did they expect me to buy a new jacket because theirs failed? Or did they expect I would stop skiing because the jacket failed? \nBe prepared and please, set very low expectations from Arcteryx any type of warranty issue.",
+      "dateCreated": "2026-09-14T01:31:22.000+00:00",
+      "datePublished": "2026-10-20T20:09:54.000+00:00",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": 1,
+        "bestRating": 5,
+        "worstRating": 1
+      },
+      "author": {
+        "@type": "Person",
+        "name": "DPetes"
+      },
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Quality of Product",
+          "value": "1",
+          "maxValue": "5"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Comfort",
+          "value": "4",
+          "maxValue": "5"
+        }
+      ],
+      "comment": [
+        {
+          "@type": "Comment",
+          "text": "Hi there, thank you for taking the time to share your experience. We're sorry to hear that both the issue with your Beta AR and your interaction with our Product Service team left you feeling disappointed. We understand that when a problem occurs while you're traveling or actively using your gear, making a repair yourself can feel like the most practical solution. While we always encourage guests to contact our Product Service team before attempting a repair whenever possible, we recognize that circumstances do not always make that feasible. Our Product Service team evaluates products based on their condition at the time of inspection, and once a product has been altered or repaired outside of our Product Service program, it may no longer be eligible under our Limited Warranty, as those modifications can affect our ability to accurately assess the original issue. We appreciate you taking the time to share your perspective, and your feedback will be shared with the appropriate teams.",
+          "datePublished": "2026-09-14T18:23:02.000+00:00",
+          "author": {
+            "@type": "Organization",
+            "name": "arcteryx"
+          },
+          "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#184763001-bv-response-184763001",
+          "parentItem": {
+            "@type": "Review",
+            "@id": "https://arcteryx.com/us/en/shop/mens/beta-ar-jacket-1062#184763001"
+          }
+        }
+      ],
+      "commentCount": 1
+    }
+  ]
+}

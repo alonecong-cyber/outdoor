@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlmodel import Session, select
 
 from app.models import Brand, MatchCandidate, RawListing, Style, Variant
@@ -10,6 +12,13 @@ from app.normalize.extract import extract_features
 from app.normalize.matcher import VariantInfo, match_raw_listing
 from app.storage import get_or_create_brand, get_or_create_style, get_or_create_variant
 from app.util import dump_json, load_json
+
+_VARIANT_SUFFIX_RE = re.compile(r",\s*[^,]+,\s*Size\s+\S+\s*$")
+
+
+def style_display_name(title: str) -> str:
+    """去掉变体标题末尾的「, 颜色, Size 尺码」后缀，得到款式名。"""
+    return _VARIANT_SUFFIX_RE.sub("", title).strip()
 
 
 def resolve_variant(session: Session, raw: RawListing) -> int | None:
@@ -48,7 +57,9 @@ def resolve_variant(session: Session, raw: RawListing) -> int | None:
     if slug and features.style_number and features.color and features.size:
         name, name_cn = brand_display(slug)
         brand = get_or_create_brand(session, slug, name, name_cn=name_cn)
-        style = get_or_create_style(session, brand.id, features.style_number, name=raw.title)
+        style = get_or_create_style(
+            session, brand.id, features.style_number, name=style_display_name(raw.title)
+        )
         # 首次出现的完整规格可以建档，但仍先比较已有canonical候选避免中英颜色重复。
         variant = get_or_create_variant(session, style.id, features.color, features.size)
         return variant.id

@@ -18,6 +18,7 @@ from app.collectors.web_product import (
     looks_like_block_or_login,
     parse_jsonld_product,
     parse_product_page,
+    parse_product_variants,
     robots_allows,
 )
 
@@ -261,3 +262,53 @@ class TestProductPage:
         raws = list(c.collect(client=client))
         assert len(raws) == 1  # 单 URL 失败不中断整个批次
         assert raws[0].channel_slug == "official-us"
+
+
+class TestProductGroup:
+    """真实官网（arcteryx.com）形态：ProductGroup + hasVariant（颜色×尺码）。
+
+    fixture 来自 2026-10-24 抓取的 Beta AR Jacket 页面，截取 3 个变体。
+    """
+
+    def _variants(self):
+        import json as _json
+        from pathlib import Path
+
+        from app.config import FIXTURES_DIR
+
+        doc = _json.loads((Path(FIXTURES_DIR) / "arcteryx_beta_ar_productgroup.json").read_text())
+        html = f'<script type="application/ld+json">{_json.dumps(doc)}</script>'
+        return parse_product_variants(html, url=doc["url"])
+
+    def test_group_expands_to_variants(self):
+        vs = self._variants()
+        assert len(vs) == 3
+        first = vs[0]
+        assert first["brand"] == "Arc'teryx"
+        assert first["color"] == "Cloud / Void"
+        assert first["size"] == "XL"
+        assert first["sku"] == "X000011062012"
+        assert first["price"] == 650.0
+        assert first["currency"] == "USD"
+        assert first["in_stock"] is True
+
+    def test_group_variants_differ_by_color_size(self):
+        vs = self._variants()
+        assert {(v["color"], v["size"]) for v in vs} == {
+            ("Cloud / Void", "XL"),
+            ("Rune / Sea Salt", "XL"),
+            ("Nucleus / Larch", "S"),
+        }
+
+    def test_page_keeps_single_item_contract(self):
+        vs = self._variants()
+        assert parse_product_page.__doc__  # 单条入口仍在
+        import json as _json
+        from pathlib import Path
+
+        from app.collectors.web_product import parse_product_page as ppp
+        from app.config import FIXTURES_DIR
+
+        doc = _json.loads((Path(FIXTURES_DIR) / "arcteryx_beta_ar_productgroup.json").read_text())
+        html = f'<script type="application/ld+json">{_json.dumps(doc)}</script>'
+        assert ppp(html, url=doc["url"]) == vs[0]
