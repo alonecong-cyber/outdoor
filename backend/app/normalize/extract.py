@@ -21,6 +21,13 @@ PATAGONIA_STYLE_RE = re.compile(r"\b(\d{5}(?:-\w{1,3})?)\b")
 COLUMBIA_STYLE_RE = re.compile(r"\b([A-Z]{2}\d{4,5})\b")
 # 国产户外（骆驼/伯希和等）：标题品牌词后紧跟的 4 位款号，如 "骆驼 3514"
 CN_OUTDOOR_STYLE_RE = re.compile(r"\b(\d{4})\b")
+# 通用款号形态（跨品牌兜底，均要求词边界，避开尺码/年份/颜色词）：
+# - 字母 1-3 位 + 数字 3-7 位：LH300 / MT6325102 / A6687 / J035795 / MH100
+# - 数字字母交替 4 位短码（TNF 新码）：8P0D / 8AV7
+# - 4 位数字 + 2 位字母（大鹅）：1925MB
+GENERIC_LEAD_ALPHA_RE = re.compile(r"\b([A-Z]{1,3}\d{3,7})\b")
+GENERIC_ALTERNATING_RE = re.compile(r"\b(\d[A-Z]\d[A-Z])\b")
+GENERIC_NUM_ALPHA_RE = re.compile(r"\b(\d{4}[A-Z]{2})\b")
 
 BRAND_STYLE_PATTERNS: dict[str, re.Pattern[str]] = {
     "arcteryx": ARCTERYX_STYLE_RE,
@@ -86,9 +93,18 @@ def extract_style_number(
         m = pattern.search(text)
         if m:
             return m.group(1).upper()
-    # 通用兜底：TNF 风格型号或孤立 5 位数字
-    m = TNF_STYLE_RE.search(text) or ARCTERYX_STYLE_RE.search(text)
-    return m.group(1).upper() if m else ""
+    # 通用兜底：品牌专属码 → 品牌码形态 → 通用款号形态 → 孤立 5 位数字
+    for regex in (
+        TNF_STYLE_RE,
+        ARCTERYX_STYLE_RE,
+        GENERIC_LEAD_ALPHA_RE,
+        GENERIC_ALTERNATING_RE,
+        GENERIC_NUM_ALPHA_RE,
+    ):
+        m = regex.search(text)
+        if m:
+            return m.group(1).upper()
+    return ""
 
 
 def extract_color(text: str, color_hint: str = "") -> str:

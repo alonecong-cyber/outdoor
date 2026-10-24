@@ -41,19 +41,28 @@ H1_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.S)
 PUB_TIME_RE = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2})")
 TAG_RE = re.compile(r"[\s　]+")
 
-# 价格尾巴：标题段末尾的 "100元" / "9.9 元"，元后可带 "（需用券）" 之类尾注
+# 价格尾巴：标题段末尾的 "100元" / "9.9 元"，元后可带 "（需用券）" / "返200积分(后)" 尾注
 PRICE_TAIL_RE = re.compile(
-    r"^(.*?)[\s　]*(\d+(?:\.\d+)?)\s*元(?:\s*[（(][^（）()]*[)）])?$"
+    r"^(.*?)[\s　]*(\d+(?:\.\d+)?)\s*元"
+    r"(?:\s*(?:[（(][^（）()]*[)）]|返\d+积分(?:后)?|补贴))?$"
 )
 # 渠道段："京东优惠促销"
 MALL_SEG_RE = re.compile(r"(.{2,14}?)优惠促销")
 
 # 渠道词典（长词优先）：fallback 扫描整个 og:title
 MALL_WORDS = [
-    "京东国际", "京东自营", "京东", "天猫超市", "天猫", "淘宝直播", "淘宝",
-    "拼多多", "抖音商城", "亚马逊", "海外购", "唯品会", "苏宁", "考拉",
+    "亚马逊海外购", "京东国际", "京东自营", "京东", "天猫超市", "天猫", "淘宝直播",
+    "淘宝", "拼多多", "抖音商城", "亚马逊", "海外购", "唯品会", "苏宁", "考拉",
     "得物", "美团", "闲鱼", "飞猪", "官网", "微信小程序",
 ]
+
+# 详情页「结构化」区：购买渠道 + 特征（自营 / 商品好评率NN% / 旗舰店…）
+STRUCT_BOX_RE = re.compile(
+    r'<div class="structuration-box">.*?<span>([^<]{2,12})</span>'
+    r"((?:\s*<span class=\"featrue\">[^<]*</span>)*)",
+    re.S,
+)
+FEATRUE_RE = re.compile(r'<span class="featrue">([^<]*)</span>')
 
 
 def parse_sitemap(xml_text: str) -> list[tuple[str, int]]:
@@ -151,6 +160,16 @@ def parse_deal_page(html: str, url: str) -> DealDraft:
             .replace(tzinfo=None)
         )
 
+    # 结构化区：渠道与特征（自营 / 好评率）比 og:title 推断更准，优先采用
+    tags: list[str] = []
+    sb = STRUCT_BOX_RE.search(html)
+    if sb:
+        mall = sb.group(1).strip()
+        feats = [f.strip() for f in FEATRUE_RE.findall(sb.group(2)) if f.strip()]
+        if mall:
+            channel = f"{mall}自营" if "自营" in feats else mall
+        tags = [f for f in feats if f != "自营"]
+
     return DealDraft(
         source="smzdm",
         source_id=deal_id or url,
@@ -160,6 +179,7 @@ def parse_deal_page(html: str, url: str) -> DealDraft:
         currency="CNY",
         channel=channel,
         image=image,
+        tags=tags,
         published_at=published_at,
     )
 

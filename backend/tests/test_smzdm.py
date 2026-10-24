@@ -53,11 +53,21 @@ def test_og_title_no_price_keeps_whole_title():
     assert channel == "天猫超市"
 
 
+def test_og_title_rebate_note_price():
+    """「1648元返200积分后」：返积分尾注不当价格，1648 是价格。"""
+    title, cents, channel = parse_og_title(
+        "北面 鹅绒内胆 三合一冲锋衣 8P0D 1648元返200积分后_天猫精选优惠促销_报价-什么值得买"
+    )
+    assert title == "北面 鹅绒内胆 三合一冲锋衣 8P0D"
+    assert cents == 164800
+    assert channel == "天猫精选"
+
+
 def test_og_title_channel_fallback_by_dictionary():
-    """第二段不是"XX优惠促销"时用渠道词典扫全文。"""
+    """第二段不是"XX优惠促销"时用渠道词典扫全文（长词优先：整词"亚马逊海外购"）。"""
     title, cents, channel = parse_og_title("某物 纸巾 20元_亚马逊海外购好价-什么值得买")
     assert cents == 2000
-    assert channel == "亚马逊"
+    assert channel == "亚马逊海外购"
 
 
 # ---------- parse_sitemap ----------
@@ -82,7 +92,9 @@ def test_parse_deal_page_real_shape(fixture_path):
     assert d.source_id == "184615805"
     assert d.title == "蒂佳婷 蓝色药丸补水面膜 5片"
     assert d.price_cents == 10000
-    assert d.channel == "京东"
+    # 结构化区渠道+自营优先于 og:title 推断；好评率进 tags
+    assert d.channel == "京东自营"
+    assert d.tags == ["商品好评率100%"]
     assert d.image.startswith("https://y.zdmimg.com/")
     # 发布时间 2026-10-24 02:59 北京时间 → UTC 18:59 前一天
     assert d.published_at is not None
@@ -211,9 +223,15 @@ def test_grow_variant_from_deal_title(session):
 
 
 def test_grow_variant_unknown_brand_or_style(session):
-    """识别不出品牌/款号 → None，绝不猜。"""
+    """非户外品牌 → None 绝不猜；品牌命中但无款号 → 哈希聚合键建 Variant。"""
     assert grow_variant(session, "蒂佳婷 蓝色药丸补水面膜 5片") is None  # 非户外品牌词典
-    assert grow_variant(session, "始祖鸟 抓绒衣 保暖款") is None  # 品牌命中但无款号
+    # 品牌命中、无款号：标题核心词哈希当聚合键
+    v1 = grow_variant(session, "始祖鸟 抓绒衣 保暖款")
+    assert v1 is not None
+    style = session.get(Style, session.get(Variant, v1).style_id)
+    assert style.style_number.startswith("T") and len(style.style_number) == 8
+    # 同款重复线报（营销前缀不同）→ 聚到同一 Variant
+    assert grow_variant(session, "88VIP：始祖鸟 抓绒衣 保暖款") == v1
 
 
 def test_ingest_deals_grows_catalog(session):

@@ -2,13 +2,16 @@
 
 - save_deal：按 (source, source_id) 幂等；content_hash 相同视为重复线报跳过；
 - grow_variant：标题 → 品牌词典 → 款号/颜色/尺码提取 → 新建或关联 Variant；
-  识别不出品牌或款号就留在未匹配（matched_variant_id = NULL），绝不猜；
+  品牌识别不出就留在未匹配（matched_variant_id = NULL），绝不猜；
+  品牌命中但标题无款号时，用「标题核心词哈希」当聚合键——同款重复线报
+  标题一致即聚到同一 Variant，不同款标题不同自然分开；
 - 商品目录由此从线报流里长出来，不预置任何单品。
 """
 
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Iterable
 
 from sqlalchemy import func
@@ -20,6 +23,9 @@ from app.normalize.extract import extract_features
 from app.storage import get_or_create_brand, get_or_create_style, get_or_create_variant
 from app.util import dump_json
 
+# 线报标题常见的营销前缀，剥掉后再做核心词
+_TITLE_PREFIX_RE = re.compile(r"^(88VIP|今日必买|移动端|小编推荐|值友专享)[:：]\s*")
+
 
 def content_hash(draft: DealDraft) -> str:
     raw = f"{draft.title}|{draft.price_cents}|{draft.channel}"
@@ -27,17 +33,23 @@ def content_hash(draft: DealDraft) -> str:
 
 
 def grow_variant(session: Session, title: str) -> int | None:
-    """线报标题 → Variant（新建或关联已有）。识别不出返回 None。"""
+    """线报标题 → Variant（新建或关联已有）。品牌识别不出返回 None。"""
     slug = detect_brand(title)
     if not slug:
         return None
-    feats = extract_features(title, brand_slug=slug)
-    if not feats.style_number:
-        return None
     name, name_cn = brand_display(slug)
+    core_title = _TITLE_PREFIX_RE.sub("", title).strip()
+    feats = extract_features(core_title, brand_slug=slug)
+    if feats.style_number:
+        style_number = feats.style_number
+        style_name = clean_style_name(core_title, (name, name_cn)) or f"{name} {style_number}"
+    else:
+        # 无款号：标题核心词哈希当聚合键，同款重复线报聚到同一 Variant
+        core = clean_style_name(core_title, (name, name_cn))
+        style_number = "T" + hashlib.sha1(core.encode("utf-8")).hexdigest()[:7].upper()
+        style_name = core or f"{name} {style_number}"
     brand = get_or_create_brand(session, slug, name, name_cn=name_cn)
-    style_name = clean_style_name(title, (name, name_cn)) or f"{name} {feats.style_number}"
-    style = get_or_create_style(session, brand.id, feats.style_number, name=style_name)
+    style = get_or_create_style(session, brand.id, style_number, name=style_name)
     variant = get_or_create_variant(
         session, style.id, feats.color or "-", feats.size or "-"
     )

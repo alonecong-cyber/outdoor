@@ -9,6 +9,10 @@ export type VariantListItem = {
   category: string;
   color: string;
   size: string;
+  min_price_cents: number | null;
+  currency: string;
+  deal_count: number;
+  image: string;
 };
 
 export type ChannelQuote = {

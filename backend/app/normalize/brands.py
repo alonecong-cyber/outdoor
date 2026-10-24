@@ -33,6 +33,17 @@ BRAND_ALIASES: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "skechers": ("Skechers", "斯凯奇", ("skechers", "斯凯奇")),
     "anta": ("ANTA", "安踏", ("anta", "安踏")),
     "toreador": ("Toreador", "探路者", ("toreador", "探路者")),
+    "jingdong-jizao": ("Jingdong Jizao", "京东京造", ("京东京造",)),
+    "canada-goose": ("Canada Goose", "加拿大鹅", ("canada goose", "加拿大鹅", "大鹅")),
+    "danner": ("Danner", "丹纳", ("danner", "丹纳")),
+    "scarpa": ("SCARPA", "思卡帕", ("scarpa", "思卡帕")),
+    "lowa": ("LOWA", "LOWA", ("lowa", "罗瓦")),
+    "timberland": ("Timberland", "添柏岚", ("timberland", "添柏岚", "天木兰")),
+    "merrell": ("Merrell", "迈乐", ("merrell", "迈乐")),
+    "asics": ("ASICS", "亚瑟士", ("asics", "亚瑟士")),
+    "hoka": ("HOKA", "HOKA", ("hoka", "霍卡")),
+    "kolon-sport": ("KOLON SPORT", "可隆", ("kolon sport", "kolon", "可隆")),
+    "mont-bell": ("mont-bell", "蒙贝欧", ("mont-bell", "mont·bell", "mont bell", "蒙贝欧")),
     "thenorthface-cn": ("The North Face", "北面", ()),
 }
 

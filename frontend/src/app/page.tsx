@@ -23,6 +23,9 @@ const BRANDS = [
 
 function DealCard({ deal, index }: { deal: DealItem; index: number }) {
   const variant = deal.variant;
+  const ratingTag = deal.tags.find((t) => t.includes("好评率"));
+  const lowTag = deal.tags.find((t) => t.includes("新低") || t.includes("低价") || t.includes("低于"));
+  const hotTag = deal.tags.find((t) => t.includes("热度"));
   return (
     <li className={`rise rise-${(index % 5) + 1}`}>
       <article className="card p-4">
@@ -30,12 +33,27 @@ function DealCard({ deal, index }: { deal: DealItem; index: number }) {
           <span className="rounded-sm bg-panel-2 px-1.5 py-0.5 text-[11px] text-ink">
             {channelName(deal.channel)}
           </span>
-          <span className="micro-label">{timeAgo(deal.published_at)}</span>
+          {ratingTag && (
+            <span className="rounded-sm border border-moss/60 px-1.5 py-0.5 text-[11px] text-moss">
+              {ratingTag}
+            </span>
+          )}
+          {lowTag && (
+            <span className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent">
+              {lowTag}
+            </span>
+          )}
+          {hotTag && (
+            <span className="rounded-sm border border-line px-1.5 py-0.5 text-[11px] text-dim">
+              {hotTag}
+            </span>
+          )}
+          <span className="micro-label ml-auto">{timeAgo(deal.published_at)}</span>
           <a
             href={deal.url}
             target="_blank"
             rel="noreferrer"
-            className="micro-label ml-auto text-dim hover:text-accent"
+            className="micro-label shrink-0 text-dim hover:text-accent"
           >
             原文 ↗
           </a>

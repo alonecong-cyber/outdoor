@@ -18,7 +18,7 @@ def list_variants(
     q: str = "",
     db: Session = Depends(get_db),
 ) -> list[dict]:
-    """列 Variant（可按 brand slug / 关键词过滤），带品牌与款式信息。"""
+    """列 Variant（可按 brand slug / 关键词过滤），带品牌、款式与线报聚合价。"""
     stmt = select(Variant, Style, Brand).join(Style, Variant.style_id == Style.id).join(
         Brand, Style.brand_id == Brand.id
     )
@@ -29,6 +29,13 @@ def list_variants(
     for variant, style, brand_obj in rows:
         if q and q.lower() not in f"{style.name} {style.style_number} {variant.color}".lower():
             continue
+        # 同款线报聚合：最低价（排除未知价 0）、线报数、一张图
+        deals = db.exec(
+            select(Deal).where(
+                Deal.matched_variant_id == variant.id, Deal.price_cents > 0  # type: ignore[union-attr]
+            )
+        ).all()  # type: ignore[call-overload]
+        cheapest = min(deals, key=lambda d: d.price_cents) if deals else None
         out.append(
             {
                 "id": variant.id,
@@ -39,6 +46,10 @@ def list_variants(
                 "category": style.category,
                 "color": variant.color,
                 "size": variant.size,
+                "min_price_cents": cheapest.price_cents if cheapest else None,
+                "currency": cheapest.currency if cheapest else "CNY",
+                "deal_count": len(deals),
+                "image": next((d.image for d in deals if d.image), ""),
             }
         )
     return out

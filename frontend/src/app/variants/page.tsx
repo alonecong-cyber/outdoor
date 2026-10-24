@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { SiteHeader } from "@/components/SiteHeader";
-import { Sparkline } from "@/components/Sparkline";
 import { ProductImage } from "@/components/ProductImage";
-import { api, type VariantDetail } from "@/lib/api";
-import { channelName, money } from "@/lib/format";
+import { api } from "@/lib/api";
+import { money } from "@/lib/format";
 
 const BRANDS = [
   { slug: "", label: "全部" },
@@ -21,25 +20,7 @@ const BRANDS = [
   { slug: "kailas", label: "凯乐石" },
 ];
 
-function bestPrice(d: VariantDetail | undefined) {
-  if (!d) return null;
-  const live = d.channels.filter((c) => c.price_cents != null);
-  const image = (d.channels.find((c) => c.image)?.image) ?? d.image ?? "";
-  if (live.length === 0) return image ? { image, noPrice: true } : null;
-  // 跨币种不能直接比分：最低价只在国内人民币渠道里选；没有人民币渠道再退到外币渠道
-  const pool = live.filter((c) => c.currency === "CNY");
-  const candidates = pool.length > 0 ? pool : live;
-  const best = candidates.reduce((a, b) => ((a.price_cents ?? 0) <= (b.price_cents ?? 0) ? a : b));
-  return {
-    channel: best.channel,
-    cents: best.price_cents!,
-    currency: best.currency,
-    history: best.history,
-    image,
-  };
-}
-
-/** 商品目录：从线报里长出来的款，聚合各渠道价格与历史。 */
+/** 商品目录：从线报里长出来的款，卡上直接给线报聚合最低价。 */
 export default function VariantsPage() {
   const [brand, setBrand] = useState("");
   const [q, setQ] = useState("");
@@ -57,13 +38,6 @@ export default function VariantsPage() {
       ),
     [variants, q],
   );
-
-  const details = useQueries({
-    queries: filtered.slice(0, 24).map((v) => ({
-      queryKey: ["variant", v.id] as const,
-      queryFn: () => api.variant(v.id),
-    })),
-  });
 
   return (
     <main>
@@ -100,52 +74,41 @@ export default function VariantsPage() {
       )}
 
       <ul className="space-y-3">
-        {filtered.slice(0, 24).map((v, i) => {
-          const d = details[i].data;
-          const best = bestPrice(d);
-          return (
-            <li key={v.id} className={`rise rise-${(i % 5) + 1}`}>
-              <Link href={`/variants/${v.id}`} className="card block p-4 transition-colors hover:border-dim">
-                <div className="flex items-start gap-3.5">
-                  <ProductImage
-                    src={best?.image}
-                    alt={`${v.style_name} ${v.color}`}
-                    className="h-20 w-20 shrink-0 rounded-sm border border-line object-cover sm:h-24 sm:w-24"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="micro-label">
-                      {v.brand_name} · {v.category || "户外"}
+        {filtered.map((v, i) => (
+          <li key={v.id} className={`rise rise-${(i % 5) + 1}`}>
+            <Link href={`/variants/${v.id}`} className="card block p-4 transition-colors hover:border-dim">
+              <div className="flex items-start gap-3.5">
+                <ProductImage
+                  src={v.image}
+                  alt={`${v.style_name} ${v.color}`}
+                  className="h-20 w-20 shrink-0 rounded-sm border border-line object-cover sm:h-24 sm:w-24"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="micro-label">
+                    {v.brand_name} · {v.category || "户外"}
+                  </p>
+                  <h2 className="font-display mt-1 truncate text-base font-bold">
+                    {v.style_name}
+                    <span className="num ml-2 text-xs text-dim">#{v.style_number}</span>
+                  </h2>
+                  <p className="mt-1 text-sm text-dim">
+                    {v.color} · {v.size}
+                  </p>
+                  {v.min_price_cents != null ? (
+                    <p className="num mt-2 text-lg font-semibold text-accent">
+                      {money(v.min_price_cents, v.currency)}
+                      <span className="micro-label ml-2 not-italic">
+                        线报最低 · {v.deal_count} 条
+                      </span>
                     </p>
-                    <h2 className="font-display mt-1 truncate text-base font-bold">
-                      {v.style_name}
-                      <span className="num ml-2 text-xs text-dim">#{v.style_number}</span>
-                    </h2>
-                    <p className="mt-1 text-sm text-dim">
-                      {v.color} · {v.size}
-                    </p>
-                    {best && !("noPrice" in best) ? (
-                      <div className="mt-2">
-                        <p className="num text-lg font-semibold text-accent">
-                          {money(best.cents, best.currency)}
-                          <span className="micro-label ml-2 not-italic">
-                            {channelName(best.channel)}
-                          </span>
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="micro-label mt-2">无线报价格点</p>
-                    )}
-                  </div>
+                  ) : (
+                    <p className="micro-label mt-2">无线报价格点</p>
+                  )}
                 </div>
-                {best && !("noPrice" in best) && best.history.length >= 2 && (
-                  <div className="mt-3 border-t border-line pt-2">
-                    <Sparkline points={best.history} width={260} height={40} />
-                  </div>
-                )}
-              </Link>
-            </li>
-          );
-        })}
+              </div>
+            </Link>
+          </li>
+        ))}
       </ul>
 
       {filtered.length === 0 && !variantsQuery.isLoading && (
