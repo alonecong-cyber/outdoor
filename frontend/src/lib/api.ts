@@ -24,6 +24,16 @@ export type ChannelQuote = {
   history: { ts: string; price_cents: number; in_stock: boolean }[];
 };
 
+export type VariantDeal = {
+  id: number;
+  title: string;
+  price_cents: number;
+  channel: string;
+  url: string;
+  image: string;
+  published_at: string | null;
+};
+
 export type VariantDetail = {
   id: number;
   brand: string;
@@ -31,7 +41,9 @@ export type VariantDetail = {
   style_name: string;
   color: string;
   size: string;
+  image: string;
   channels: ChannelQuote[];
+  deals: VariantDeal[];
 };
 
 export type QuoteStep = {
@@ -84,6 +96,39 @@ export type AlertEventItem = {
   payload: Record<string, unknown>;
   sent_at: string | null;
   send_error: string | null;
+};
+
+export type DealVariantInfo = {
+  variant_id: number;
+  brand_slug: string;
+  brand_name: string;
+  style_number: string;
+  style_name: string;
+  color: string;
+  size: string;
+};
+
+export type DealItem = {
+  id: number;
+  source: string;
+  source_id: string;
+  url: string;
+  title: string;
+  price_cents: number;
+  currency: string;
+  channel: string;
+  image: string;
+  tags: string[];
+  published_at: string | null;
+  variant: DealVariantInfo | null;
+};
+
+export type IngestResult = {
+  ok: boolean;
+  saved: number;
+  created: number;
+  matched: number;
+  errors: string[];
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -144,4 +189,14 @@ export const api = {
     request<{ ok: boolean; error: string | null }>(`/api/alerts/events/${id}/send`, {
       method: "POST",
     }),
+  deals: (params: { q?: string; brand?: string; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.brand) qs.set("brand", params.brand);
+    if (params.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<DealItem[]>(`/api/deals${suffix}`);
+  },
+  ingestDeals: (details = 5) =>
+    request<IngestResult>(`/api/deals/ingest?details=${details}`, { method: "POST" }),
 };

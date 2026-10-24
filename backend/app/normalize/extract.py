@@ -17,12 +17,20 @@ from dataclasses import dataclass, field
 ARCTERYX_STYLE_RE = re.compile(r"\b(\d{5})\b")
 TNF_STYLE_RE = re.compile(r"\b(NF[0-9A-Z]{5,9})\b")
 PATAGONIA_STYLE_RE = re.compile(r"\b(\d{5}(?:-\w{1,3})?)\b")
+# 哥伦比亚 XE5743 / PM4951：两字母+4-5 位数字
+COLUMBIA_STYLE_RE = re.compile(r"\b([A-Z]{2}\d{4,5})\b")
+# 国产户外（骆驼/伯希和等）：标题品牌词后紧跟的 4 位款号，如 "骆驼 3514"
+CN_OUTDOOR_STYLE_RE = re.compile(r"\b(\d{4})\b")
 
 BRAND_STYLE_PATTERNS: dict[str, re.Pattern[str]] = {
     "arcteryx": ARCTERYX_STYLE_RE,
     "the-north-face": TNF_STYLE_RE,
     "tnf": TNF_STYLE_RE,
     "patagonia": PATAGONIA_STYLE_RE,
+    "columbia": COLUMBIA_STYLE_RE,
+    "camel": CN_OUTDOOR_STYLE_RE,
+    "pelliot": CN_OUTDOOR_STYLE_RE,
+    "kailas": CN_OUTDOOR_STYLE_RE,
 }
 
 # ---------- 颜色（长词在前，防短词抢先命中） ----------

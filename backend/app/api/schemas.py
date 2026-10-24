@@ -81,3 +81,39 @@ class FillerOut(BaseModel):
     ok: bool
     total_extra_cents: int
     item_ids: list[str]
+
+
+# ---------- 线报流 ----------
+
+
+class DealVariantOut(BaseModel):
+    variant_id: int
+    brand_slug: str
+    brand_name: str
+    style_number: str
+    style_name: str
+    color: str
+    size: str
+
+
+class DealOut(BaseModel):
+    id: int
+    source: str
+    source_id: str
+    url: str
+    title: str
+    price_cents: int
+    currency: str
+    channel: str
+    image: str
+    tags: list[str]
+    published_at: str | None
+    variant: DealVariantOut | None
+
+
+class IngestOut(BaseModel):
+    ok: bool
+    saved: int
+    created: int
+    matched: int
+    errors: list[str]

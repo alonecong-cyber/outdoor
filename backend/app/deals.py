@@ -1,0 +1,161 @@
+"""线报落库与商品目录自动生长（Deal → Variant）。
+
+- save_deal：按 (source, source_id) 幂等；content_hash 相同视为重复线报跳过；
+- grow_variant：标题 → 品牌词典 → 款号/颜色/尺码提取 → 新建或关联 Variant；
+  识别不出品牌或款号就留在未匹配（matched_variant_id = NULL），绝不猜；
+- 商品目录由此从线报流里长出来，不预置任何单品。
+"""
+
+from __future__ import annotations
+
+import hashlib
+from collections.abc import Iterable
+
+from sqlalchemy import func
+from sqlmodel import Session, select
+
+from app.models import Brand, Deal, DealDraft, Style, Variant
+from app.normalize.brands import brand_display, clean_style_name, detect_brand
+from app.normalize.extract import extract_features
+from app.storage import get_or_create_brand, get_or_create_style, get_or_create_variant
+from app.util import dump_json
+
+
+def content_hash(draft: DealDraft) -> str:
+    raw = f"{draft.title}|{draft.price_cents}|{draft.channel}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def grow_variant(session: Session, title: str) -> int | None:
+    """线报标题 → Variant（新建或关联已有）。识别不出返回 None。"""
+    slug = detect_brand(title)
+    if not slug:
+        return None
+    feats = extract_features(title, brand_slug=slug)
+    if not feats.style_number:
+        return None
+    name, name_cn = brand_display(slug)
+    brand = get_or_create_brand(session, slug, name, name_cn=name_cn)
+    style_name = clean_style_name(title, (name, name_cn)) or f"{name} {feats.style_number}"
+    style = get_or_create_style(session, brand.id, feats.style_number, name=style_name)
+    variant = get_or_create_variant(
+        session, style.id, feats.color or "-", feats.size or "-"
+    )
+    return variant.id
+
+
+def save_deal(
+    session: Session, draft: DealDraft, *, grow_catalog: bool = True
+) -> tuple[Deal, bool]:
+    """DealDraft → Deal upsert。返回 (deal, created)；重复内容返回 created=False。"""
+    h = content_hash(draft)
+    deal = session.exec(
+        select(Deal).filter_by(source=draft.source, source_id=draft.source_id)
+    ).first()
+    if deal is not None:
+        if deal.content_hash == h:
+            return deal, False
+        deal.title = draft.title
+        deal.price_cents = draft.price_cents
+        deal.currency = draft.currency
+        deal.channel = draft.channel
+        deal.image = draft.image
+        deal.url = draft.url or deal.url
+        deal.tags_json = dump_json(draft.tags)
+        if draft.published_at:
+            deal.published_at = draft.published_at
+        created = False
+    else:
+        deal = Deal(
+            source=draft.source,
+            source_id=draft.source_id,
+            url=draft.url,
+            title=draft.title,
+            price_cents=draft.price_cents,
+            currency=draft.currency,
+            channel=draft.channel,
+            image=draft.image,
+            tags_json=dump_json(draft.tags),
+            published_at=draft.published_at,
+        )
+        created = True
+    deal.content_hash = h
+    if grow_catalog and deal.matched_variant_id is None:
+        variant_id = grow_variant(session, deal.title)
+        if variant_id is not None:
+            deal.matched_variant_id = variant_id
+    session.add(deal)
+    session.flush()
+    return deal, created
+
+
+def max_source_id(session: Session, source: str = "smzdm") -> int:
+    """已入库线报的最大 source_id（整数），增量发现的起点。"""
+    rows = session.exec(
+        select(Deal.source_id).where(Deal.source == source)  # type: ignore[call-overload]
+    ).all()
+    ids = [int(r) for r in rows if r.isdigit()]
+    return max(ids, default=0)
+
+
+def known_source_ids(session: Session, source: str = "smzdm") -> set[str]:
+    """已入库线报的 source_id 集合，品类页模式跳过它们避免重复抓详情。"""
+    rows = session.exec(
+        select(Deal.source_id).where(Deal.source == source)  # type: ignore[call-overload]
+    ).all()
+    return set(rows)
+
+
+def ingest_deals(
+    session: Session, drafts: Iterable[DealDraft], *, grow_catalog: bool = True
+) -> dict:
+    """批量落库。单条失败回滚记录，不拖垮整批。"""
+    saved = created = matched = 0
+    errors: list[str] = []
+    for d in drafts:
+        try:
+            deal, c = save_deal(session, d, grow_catalog=grow_catalog)
+            saved += 1
+            created += int(c)
+            matched += int(deal.matched_variant_id is not None)
+        except Exception as e:  # noqa: BLE001 - 单条失败继续
+            session.rollback()
+            errors.append(f"{d.source_id}: {e}")
+    session.commit()
+    return {"saved": saved, "created": created, "matched": matched, "errors": errors}
+
+
+def list_deals(session: Session, *, limit: int = 50, offset: int = 0) -> list[Deal]:
+    """线报流：新→旧（published_at 缺失用 created_at 兜底）。"""
+    key = func.coalesce(Deal.published_at, Deal.created_at)
+    rows = session.exec(
+        select(Deal)
+        .order_by(key.desc())  # type: ignore[arg-type]
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    return list(rows)
+
+
+def variant_context(session: Session, variant_ids: set[int]) -> dict[int, dict]:
+    """批量取 variant 的品牌/款式信息，供线报卡片展示。"""
+    ctx: dict[int, dict] = {}
+    if not variant_ids:
+        return ctx
+    rows = session.exec(
+        select(Variant, Style, Brand)
+        .join(Style, Variant.style_id == Style.id)  # type: ignore[arg-type]
+        .join(Brand, Style.brand_id == Brand.id)  # type: ignore[arg-type]
+        .where(Variant.id.in_(variant_ids))  # type: ignore[union-attr]
+    ).all()
+    for variant, style, brand in rows:
+        ctx[variant.id] = {
+            "variant_id": variant.id,
+            "brand_slug": brand.slug,
+            "brand_name": brand.name_cn or brand.name,
+            "style_number": style.style_number,
+            "style_name": style.name,
+            "color": variant.color,
+            "size": variant.size,
+        }
+    return ctx

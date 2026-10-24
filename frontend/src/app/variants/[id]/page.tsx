@@ -10,7 +10,7 @@ import { ProductImage } from "@/components/ProductImage";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Sparkline } from "@/components/Sparkline";
 import { api, type ChannelQuote } from "@/lib/api";
-import { cny, alertKindName, channelName, money } from "@/lib/format";
+import { cny, alertKindName, channelName, money, timeAgo } from "@/lib/format";
 
 function SubscribeBox({ variantId }: { variantId: number }) {
   const qc = useQueryClient();
@@ -128,7 +128,8 @@ export default function VariantPage() {
   }
 
   const v = detail.data;
-  const heroImage = v.channels.find((c) => c.image)?.image;
+  const heroImage = v.channels.find((c) => c.image)?.image ?? v.image;
+  const dealPoints = v.deals.filter((d) => d.price_cents > 0);
   const live = v.channels.filter((c) => c.price_cents != null);
   // 跨币种不可直接比：最低徽章只在国内人民币渠道里选，没有再退到外币渠道
   const cnyLive = live.filter((c) => c.currency === "CNY");
@@ -174,8 +175,7 @@ export default function VariantPage() {
 
       <section className="rise rise-2 mb-4 space-y-3">
         <p className="micro-label">各渠道现价{cnyLive.length > 0 ? "（人民币渠道由低到高，外币渠道单列）" : ""}</p>
-        {v.channels.length === 0 && <p className="text-sm text-dim">该款暂无渠道 listing。</p>}
-        {sorted.map((c) => {
+        {v.channels.length === 0 && <p className="text-sm text-dim">该款暂无渠道 listing。</p>}        {sorted.map((c) => {
           const isMin = cheapest && c.listing_id === cheapest.listing_id;
           const isCny = c.currency === "CNY";
           return (
@@ -231,6 +231,45 @@ export default function VariantPage() {
           );
         })}
       </section>
+
+      {v.deals.length > 0 && (
+        <section className="rise rise-3 mb-4 space-y-3">
+          <p className="micro-label">同款线报价格点（{v.deals.length}）</p>
+          {v.deals.map((d) => (
+            <article key={d.id} className="card p-3.5">
+              <div className="flex items-center gap-2">
+                <span className="rounded-sm bg-panel-2 px-1.5 py-0.5 text-[11px] text-ink">
+                  {channelName(d.channel)}
+                </span>
+                <span className="micro-label">{timeAgo(d.published_at)}</span>
+                {d.price_cents > 0 && (
+                  <span className="num ml-auto text-base font-semibold text-accent">
+                    {money(d.price_cents, "CNY")}
+                  </span>
+                )}
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="micro-label shrink-0 text-dim hover:text-accent"
+                >
+                  原文 ↗
+                </a>
+              </div>
+              <p className="mt-1.5 line-clamp-2 text-sm text-dim">{d.title}</p>
+            </article>
+          ))}
+          {dealPoints.length >= 2 && (
+            <div className="card p-3.5">
+              <p className="micro-label mb-2">线报价格走势</p>
+              <Sparkline points={dealPoints.map((d) => ({
+                ts: d.published_at ?? "",
+                price_cents: d.price_cents,
+              }))} width={280} height={44} />
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="rise rise-3">
         <SubscribeBox variantId={v.id} />

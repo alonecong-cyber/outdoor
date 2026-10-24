@@ -66,3 +66,20 @@ export const ALERT_KIND_NAMES: Record<string, string> = {
 export function alertKindName(kind: string): string {
   return ALERT_KIND_NAMES[kind] ?? kind;
 }
+
+/** 相对时间：刚刚 / N 分钟前 / N 小时前 / N 天前 / 日期。 */
+export function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "刚刚";
+  if (min < 60) return `${min} 分钟前`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} 天前`;
+  const d = new Date(t);
+  return `${d.getMonth() + 1}-${d.getDate()}`;
+}

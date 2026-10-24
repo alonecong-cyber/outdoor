@@ -133,6 +133,34 @@ def send_pending_alerts(session: Session, *, now: datetime | None = None) -> dic
     return {"sent": sent, "failed": failed}
 
 
+def ingest_smzdm_deals(
+    session: Session,
+    *,
+    max_details: int = 20,
+    collector_factory: Callable[[], object] | None = None,
+) -> dict:
+    """拉一轮 smzdm 线报入库（户外品类页定向，≥10s/请求，跳过已入库 ID）。"""
+    from app.collectors.smzdm import SmzdmFeedCollector
+    from app.deals import ingest_deals, known_source_ids, max_source_id
+
+    factory = collector_factory or (lambda: SmzdmFeedCollector(max_details_per_run=max_details))
+    collector = factory()
+    try:
+        collect = getattr(collector, "collect_categories", None)
+        if collect is not None:
+            drafts = collect(exclude_ids=known_source_ids(session), limit=max_details)
+        else:
+            drafts = collector.collect(max_source_id(session), limit=max_details)
+    except Exception as e:  # noqa: BLE001 - 调度器内失败只记录
+        return {"ok": False, "error": f"线报采集失败: {e}"}
+    finally:
+        close = getattr(collector, "close", None)
+        if close:
+            close()
+    result = ingest_deals(session, drafts)
+    return {"ok": not result["errors"], **result}
+
+
 def _default_session() -> Session:
     return Session(get_engine())
 
@@ -143,6 +171,7 @@ def build_scheduler(
     collect_specs: list[dict] | None = None,
     collect_interval_minutes: int = 30,
     alert_interval_seconds: int = 300,
+    ingest_deals_interval_minutes: int = 30,
     start_now: bool = True,
 ):
     """组装 APScheduler（SQLite jobstore）。生产由 main.py 启动，测试注入假 job。"""
@@ -164,6 +193,10 @@ def build_scheduler(
         with session_factory() as session:
             send_pending_alerts(session)
 
+    def _ingest_deals_job() -> None:
+        with session_factory() as session:
+            ingest_smzdm_deals(session)
+
     scheduler.add_job(
         _collect_job,
         "interval",
@@ -176,6 +209,13 @@ def build_scheduler(
         "interval",
         seconds=alert_interval_seconds,
         id="send_alerts",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _ingest_deals_job,
+        "interval",
+        minutes=ingest_deals_interval_minutes,
+        id="ingest_deals",
         replace_existing=True,
     )
     if start_now:

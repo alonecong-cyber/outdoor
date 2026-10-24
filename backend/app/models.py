@@ -187,8 +187,51 @@ class ExchangeRate(SQLModel, table=True):
 
 
 # ---------------------------------------------------------------------------
+# 优惠线报（应用的内容主体，商品目录从线报里长出来）
+# ---------------------------------------------------------------------------
+
+
+class Deal(SQLModel, table=True):
+    """一条优惠线报（smzdm 好价等）。按 (source, source_id) 幂等。"""
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    source: str = SQLField(default="smzdm", index=True)
+    source_id: str = SQLField(index=True)  # smzdm 文章 ID，如 184615805
+    url: str = ""  # 线报原文
+    title: str
+    price_cents: int = 0  # 线报标价（券前）；0 = 未知/免费信息型
+    currency: str = "CNY"
+    channel: str = ""  # 京东 / 天猫 / 官网 ...
+    image: str = ""
+    tags_json: str = "[]"
+    published_at: NaiveDatetime | None = None
+    matched_variant_id: int | None = SQLField(
+        default=None, foreign_key="variant.id", index=True
+    )  # 命中已有/新长出的 variant；NULL = 未匹配（照常展示）
+    content_hash: str = ""  # 标题+价格+渠道，重复线报跳过
+    created_at: NaiveDatetime = SQLField(default_factory=utc_now)
+
+    __table_args__ = (UniqueConstraint("source", "source_id"),)
+
+
+# ---------------------------------------------------------------------------
 # 采集器统一产出（pydantic，非表）
 # ---------------------------------------------------------------------------
+
+
+class DealDraft(BaseModel):
+    """线报采集器的统一产出（smzdm 等）。"""
+
+    source: str = "smzdm"
+    source_id: str
+    url: str = ""
+    title: str
+    price_cents: int = 0
+    currency: str = "CNY"
+    channel: str = ""
+    image: str = ""
+    tags: list[str] = Field(default_factory=list)
+    published_at: datetime | None = None
 
 
 class CouponInfo(BaseModel):

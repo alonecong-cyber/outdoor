@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.api.deps import get_db
-from app.models import Brand, Channel, Listing, Style, Variant
+from app.models import Brand, Channel, Deal, Listing, Style, Variant
 from app.storage import last_snapshot, price_history
 
 router = APIRouter(tags=["catalog"])
@@ -80,6 +80,30 @@ def variant_detail(variant_id: int, db: Session = Depends(get_db)) -> dict:
                 ],
             }
         )
+
+    # 无渠道快照时，用已匹配线报的图片兜底（商品从线报长出来时目录里还没有 listing）
+    image = next((c["image"] for c in channels if c["image"]), "")
+    deal_rows = db.exec(
+        select(Deal)
+        .where(Deal.matched_variant_id == variant_id)  # type: ignore[union-attr]
+        .order_by(Deal.published_at.desc())  # type: ignore[union-attr]
+        .limit(20)
+    ).all()
+    deals = [
+        {
+            "id": d.id,
+            "title": d.title,
+            "price_cents": d.price_cents,
+            "channel": d.channel,
+            "url": d.url,
+            "image": d.image,
+            "published_at": d.published_at.isoformat() + "Z" if d.published_at else None,
+        }
+        for d in deal_rows
+    ]
+    if not image and deals:
+        image = next((d["image"] for d in deals if d["image"]), "")
+
     return {
         "id": variant.id,
         "brand": brand.slug if brand else "",
@@ -87,7 +111,9 @@ def variant_detail(variant_id: int, db: Session = Depends(get_db)) -> dict:
         "style_name": style.name if style else "",
         "color": variant.color,
         "size": variant.size,
+        "image": image,
         "channels": channels,
+        "deals": deals,
     }
 
 

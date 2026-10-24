@@ -2,69 +2,125 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { SiteHeader } from "@/components/SiteHeader";
-import { Sparkline } from "@/components/Sparkline";
-import { ProductImage } from "@/components/ProductImage";
-import { api, type VariantDetail } from "@/lib/api";
-import { channelName, money } from "@/lib/format";
+import { api, type DealItem } from "@/lib/api";
+import { channelName, money, timeAgo } from "@/lib/format";
 
 const BRANDS = [
   { slug: "", label: "全部" },
   { slug: "arcteryx", label: "始祖鸟" },
-  { slug: "the-north-face", label: "TNF" },
-  { slug: "patagonia", label: "Patagonia" },
+  { slug: "the-north-face", label: "北面" },
+  { slug: "patagonia", label: "巴塔哥尼亚" },
+  { slug: "columbia", label: "哥伦比亚" },
+  { slug: "camel", label: "骆驼" },
+  { slug: "pelliot", label: "伯希和" },
+  { slug: "kailas", label: "凯乐石" },
+  { slug: "mammut", label: "猛犸象" },
+  { slug: "marmot", label: "土拨鼠" },
 ];
 
-function bestPrice(d: VariantDetail | undefined) {
-  if (!d) return null;
-  const live = d.channels.filter((c) => c.price_cents != null);
-  if (live.length === 0) return null;
-  // 跨币种不能直接比分：最低价只在国内人民币渠道里选；没有人民币渠道再退到外币渠道
-  const pool = live.filter((c) => c.currency === "CNY");
-  const candidates = pool.length > 0 ? pool : live;
-  const best = candidates.reduce((a, b) => ((a.price_cents ?? 0) <= (b.price_cents ?? 0) ? a : b));
-  return {
-    channel: best.channel,
-    cents: best.price_cents!,
-    currency: best.currency,
-    history: best.history,
-    image: (d.channels.find((c) => c.image)?.image) ?? "",
-  };
+function DealCard({ deal, index }: { deal: DealItem; index: number }) {
+  const variant = deal.variant;
+  return (
+    <li className={`rise rise-${(index % 5) + 1}`}>
+      <article className="card p-4">
+        <div className="flex items-center gap-2">
+          <span className="rounded-sm bg-panel-2 px-1.5 py-0.5 text-[11px] text-ink">
+            {channelName(deal.channel)}
+          </span>
+          <span className="micro-label">{timeAgo(deal.published_at)}</span>
+          <a
+            href={deal.url}
+            target="_blank"
+            rel="noreferrer"
+            className="micro-label ml-auto text-dim hover:text-accent"
+          >
+            原文 ↗
+          </a>
+        </div>
+
+        <div className="mt-2.5 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[15px] font-semibold leading-snug">{deal.title}</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {deal.price_cents > 0 ? (
+                <span className="num font-display text-xl font-bold text-accent">
+                  {money(deal.price_cents, deal.currency)}
+                </span>
+              ) : (
+                <span className="micro-label">见原文</span>
+              )}
+              {variant && (
+                <Link
+                  href={`/variants/${variant.variant_id}`}
+                  className="rounded-sm border border-accent-soft px-1.5 py-0.5 text-[11px] text-accent hover:bg-accent-soft/20"
+                >
+                  {variant.brand_name} #{variant.style_number}
+                </Link>
+              )}
+            </div>
+          </div>
+          {deal.image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={deal.image}
+              alt=""
+              loading="lazy"
+              className="h-16 w-16 shrink-0 rounded-sm border border-line object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          )}
+        </div>
+      </article>
+    </li>
+  );
 }
 
-export default function HomePage() {
+/** 线报流首页：smzdm 优惠线报，商品从线报里长出来。 */
+export default function DealFeedPage() {
   const [brand, setBrand] = useState("");
   const [q, setQ] = useState("");
+  const queryClient = useQueryClient();
 
-  const variantsQuery = useQuery({
-    queryKey: ["variants", brand],
-    queryFn: () => api.variants(brand ? { brand } : {}),
+  const dealsQuery = useQuery({
+    queryKey: ["deals", brand],
+    queryFn: () => api.deals(brand ? { brand } : { limit: 100 }),
   });
 
-  const variants = variantsQuery.data ?? [];
+  const ingest = useMutation({
+    mutationFn: () => api.ingestDeals(5),
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ["deals"] });
+      void queryClient.invalidateQueries({ queryKey: ["variants"] });
+      return res;
+    },
+  });
+
+  const deals = dealsQuery.data ?? [];
   const filtered = useMemo(
-    () =>
-      variants.filter((v) =>
-        q ? `${v.style_name} ${v.style_number} ${v.color}`.toLowerCase().includes(q.toLowerCase()) : true,
-      ),
-    [variants, q],
+    () => (q ? deals.filter((d) => d.title.toLowerCase().includes(q.toLowerCase())) : deals),
+    [deals, q],
   );
 
-  // 首页要展示“现在最低多少钱”，逐个取详情（MVP 数据量小，可接受）
-  const details = useQueries({
-    queries: filtered.slice(0, 24).map((v) => ({
-      queryKey: ["variant", v.id] as const,
-      queryFn: () => api.variant(v.id),
-    })),
-  });
+  const ingestNote = ingest.isPending
+    ? "正在拉取线报（约 1 分钟）…"
+    : ingest.isError
+      ? `拉取失败：${(ingest.error as Error).message}`
+      : ingest.data
+        ? ingest.data.ok
+          ? `新拉取 ${ingest.data.created} 条线报`
+          : `拉取失败：${ingest.data.errors[0] ?? "未知错误"}`
+        : null;
 
   return (
     <main>
-      <SiteHeader kicker="M5" />
+      <SiteHeader kicker="FEED" />
 
-      <div className="rise rise-1 mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="rise rise-1 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex flex-wrap gap-2">
           {BRANDS.map((b) => (
             <button
@@ -83,68 +139,46 @@ export default function HomePage() {
         </div>
         <input
           className="field sm:ml-auto sm:max-w-56"
-          placeholder="搜型号 / 颜色…"
+          placeholder="搜线报…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
 
-      {variantsQuery.isLoading && <p className="micro-label">载入目录…</p>}
-      {variantsQuery.isError && (
-        <p className="text-sm text-accent">后端不可达：{(variantsQuery.error as Error).message}</p>
+      <div className="rise rise-2 mb-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => ingest.mutate()}
+          disabled={ingest.isPending}
+          className="btn-primary w-full py-2.5 text-sm"
+        >
+          {ingest.isPending ? "拉取中…" : "⚡ 拉取最新线报"}
+        </button>
+      </div>
+      {ingestNote && <p className="micro-label mb-4">{ingestNote}</p>}
+
+      {dealsQuery.isLoading && <p className="micro-label">载入线报…</p>}
+      {dealsQuery.isError && (
+        <p className="text-sm text-accent">后端不可达：{(dealsQuery.error as Error).message}</p>
       )}
 
       <ul className="space-y-3">
-        {filtered.slice(0, 24).map((v, i) => {
-          const d = details[i].data;
-          const best = bestPrice(d);
-          return (
-            <li key={v.id} className={`rise rise-${(i % 5) + 1}`}>
-              <Link href={`/variants/${v.id}`} className="card block p-4 transition-colors hover:border-dim">
-                <div className="flex items-start gap-3.5">
-                  <ProductImage
-                    src={best?.image}
-                    alt={`${v.style_name} ${v.color}`}
-                    className="h-20 w-20 shrink-0 rounded-sm border border-line object-cover sm:h-24 sm:w-24"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="micro-label">
-                      {v.brand_name} · {v.category || "户外"}
-                    </p>
-                    <h2 className="font-display mt-1 truncate text-base font-bold">
-                      {v.style_name}
-                      <span className="num ml-2 text-xs text-dim">#{v.style_number}</span>
-                    </h2>
-                    <p className="mt-1 text-sm text-dim">
-                      {v.color} · {v.size}
-                    </p>
-                    {best ? (
-                      <div className="mt-2">
-                        <p className="num text-lg font-semibold text-accent">
-                          {money(best.cents, best.currency)}
-                          <span className="micro-label ml-2 not-italic">
-                            {channelName(best.channel)}
-                          </span>
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="micro-label mt-2">无在售快照</p>
-                    )}
-                  </div>
-                </div>
-                {best && best.history.length >= 2 && (
-                  <div className="mt-3 border-t border-line pt-2">
-                    <Sparkline points={best.history} width={260} height={40} />
-                  </div>
-                )}
-              </Link>
-            </li>
-          );
-        })}
+        {filtered.map((d, i) => (
+          <DealCard key={d.id} deal={d} index={i} />
+        ))}
       </ul>
 
-      {filtered.length === 0 && !variantsQuery.isLoading && (
-        <p className="micro-label">没有匹配的款。先跑采集器或调整筛选。</p>
+      {filtered.length === 0 && !dealsQuery.isLoading && !ingest.isPending && (
+        <div className="card rise rise-3 flex flex-col items-center gap-4 p-8 text-center">
+          <p className="text-sm text-dim">还没有线报。拉取一轮 smzdm 最新优惠，商品会自动从线报里长出来。</p>
+          <button
+            type="button"
+            onClick={() => ingest.mutate()}
+            className="btn-primary px-6 py-2.5 text-sm"
+          >
+            ⚡ 拉取最新线报
+          </button>
+        </div>
       )}
     </main>
   );
