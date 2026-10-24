@@ -446,9 +446,11 @@ function CalculatorInner() {
         ))}
       </div>
       <section className="rise rise-2">
-        {tab === "cn" && <CnQuote />}
-        {tab === "overseas" && <OverseasQuote key={usdParam ?? "default"} initialUsd={usdParam} />}
-        {tab === "filler" && <FillerCalc />}
+        <div className="calc-wrap">
+          {tab === "cn" && <CnQuote />}
+          {tab === "overseas" && <OverseasQuote key={usdParam ?? "default"} initialUsd={usdParam} />}
+          {tab === "filler" && <FillerCalc />}
+        </div>
       </section>
     </main>
   );
