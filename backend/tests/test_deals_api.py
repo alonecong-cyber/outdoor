@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from app.deals import ingest_deals
+from sqlmodel import Session
+
+from app.deals import ingest_deals, save_deal
 from app.main import app
 from app.models import DealDraft
 
@@ -112,3 +114,31 @@ def test_deals_ingest_failure_returns_502(client):
         del app.state.smzdm_collector_factory
     assert resp.status_code == 502
     assert "线报拉取失败" in resp.json()["detail"]
+
+
+def test_deal_notes(client):
+    app = client.app
+    # 造一条线报
+    drafts = [
+        DealDraft(
+            source="test", source_id="n1", url="https://x/1",
+            title="始祖鸟 Beta AR 男款", price_cents=26320, currency="CNY", channel="京东",
+        )
+    ]
+    with Session(app.state.db_engine) as s:
+        save_deal(s, drafts[0])
+        s.commit()
+    deal_id = client.get("/api/deals").json()[0]["id"]
+
+    assert client.get(f"/api/deals/{deal_id}/notes").json() == []
+    created = client.post(f"/api/deals/{deal_id}/notes", json={"body": "等 88VIP 再买"})
+    assert created.status_code == 200 and created.json()["body"] == "等 88VIP 再买"
+    assert client.post(f"/api/deals/{deal_id}/notes", json={"body": "   "}).status_code == 400
+
+    notes = client.get(f"/api/deals/{deal_id}/notes").json()
+    assert len(notes) == 1
+    note_id = notes[0]["id"]
+    assert client.delete(f"/api/deals/{deal_id}/notes/{note_id}").status_code == 200
+    assert client.get(f"/api/deals/{deal_id}/notes").json() == []
+    # 404
+    assert client.get("/api/deals/99999/notes").status_code == 404

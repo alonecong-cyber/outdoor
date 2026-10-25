@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-type IconName = "mountain" | "search" | "arrow" | "external" | "grid" | "bell" | "calculator" | "clock" | "check" | "chevron" | "close" | "menu" | "filter";
+type IconName = "mountain" | "search" | "arrow" | "external" | "grid" | "bell" | "clock" | "check" | "chevron" | "close" | "menu" | "filter";
 
 const paths: Record<IconName, React.ReactNode> = {
   mountain: <><path d="m2 19 7-13 5 8 3-5 5 10H2Z" /><path d="m6 12 3 1 2-3m4 2 2 1 2-1" /></>,
@@ -9,7 +9,6 @@ const paths: Record<IconName, React.ReactNode> = {
   external: <><path d="M14 4h6v6m0-6L10 14" /><path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5" /></>,
   grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" /></>,
-  calculator: <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M8 6h8M8 11h1m6 0h1m-8 4h1m6 0h1m-8 4h1m6 0h1" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   check: <path d="m5 12 4 4L19 6" />,
   chevron: <path d="m9 5 7 7-7 7" />,

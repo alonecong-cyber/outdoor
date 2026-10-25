@@ -292,6 +292,7 @@ def _default_session() -> Session:
 # 折扣线报的 Shopify 零售商目录（robots 允许爬公开商品接口）。
 SHOPIFY_DEAL_SOURCES = [
     ("evo_us", "https://www.evo.com/collections/arc-teryx/products.json"),
+    ("gearx_us", "https://www.gearx.com/collections/arcteryx/products.json"),
 ]
 
 
@@ -336,6 +337,18 @@ def deals_job(db_path: str, runtime_key: str = "") -> None:
         shopify = refresh_shopify_deals(session)
         if shopify.get("ok") is False:
             logger.warning("Shopify 折扣线报更新失败: %s", shopify)
+
+
+def watch_job(db_path: str, runtime_key: str = "") -> None:
+    """关注列表检查：匹配站内已有线报（不发外部请求），再外发未发提醒。"""
+    from app.watch import check_all_watches, send_pending_watch_alerts
+
+    with _job_session(db_path, runtime_key) as session:
+        result = check_all_watches(session)
+        if result["triggered"]:
+            logger.info("关注命中: %s", result["triggered"])
+        if get_settings().notifications_enabled:
+            send_pending_watch_alerts(session)
 
 
 def build_scheduler(
@@ -383,6 +396,14 @@ def build_scheduler(
         minutes=ingest_deals_interval_minutes,
         kwargs=shared,
         id="ingest_deals",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        watch_job,
+        "interval",
+        minutes=ingest_deals_interval_minutes,
+        kwargs=shared,
+        id="check_watches",
         replace_existing=True,
     )
     if start_now:

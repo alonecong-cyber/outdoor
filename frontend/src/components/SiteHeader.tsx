@@ -8,7 +8,7 @@ import { Icon } from "@/components/Icon";
 const NAV = [
   { href: "/", label: "发现优惠", short: "发现" },
   { href: "/variants", label: "装备目录", short: "目录" },
-  { href: "/calculator", label: "到手价计算器", short: "计算器" },
+  { href: "/watch", label: "我的关注", short: "关注" },
   { href: "/alerts", label: "降价提醒", short: "提醒" },
 ];
 

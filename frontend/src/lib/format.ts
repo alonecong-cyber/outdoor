@@ -64,6 +64,7 @@ export function promoName(kind: string): string {
 export const ALERT_KIND_NAMES: Record<string, string> = {
   price_below: "低于目标价",
   new_low: "历史新低",
+  target_hit: "达到目标价",
 };
 
 export function alertKindName(kind: string): string {

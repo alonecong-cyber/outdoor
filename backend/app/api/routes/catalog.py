@@ -35,7 +35,9 @@ def _reported(deals: list[Deal]) -> tuple[int | None, str]:
 
 
 @router.get("/variants")
-def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -> list[dict]:
+def list_variants(
+    brand: str = "", q: str = "", sort: str = "", db: Session = Depends(get_db)
+) -> list[dict]:
     from sqlalchemy import or_
 
     stmt = (
@@ -80,6 +82,10 @@ def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -
         ]
         reported_min, report_currency = _reported(deals)
         current_min = min((c["effective_cents"] for c in current), default=None)
+        # 人民币口径排序键：优先核验报价，否则用线报价（与卡片展示口径一致；外币不混算）
+        cny_min = current_min
+        if cny_min is None and report_currency == "CNY":
+            cny_min = reported_min
         if current:
             basis_currency = "CNY"
         elif verified_any and len({c["currency"] for c in verified_any}) == 1:
@@ -99,6 +105,7 @@ def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -
                 "color": variant.color,
                 "size": variant.size,
                 "min_price_cents": current_min,
+                "sort_price_cents": cny_min,
                 "reported_min_price_cents": reported_min,
                 "currency": basis_currency if current or verified_any else (
                     "CNY" if current else report_currency
@@ -117,6 +124,13 @@ def list_variants(brand: str = "", q: str = "", db: Session = Depends(get_db)) -
                 or next((d.image for d in deals if d.image), ""),
             }
         )
+    if sort in {"price_asc", "price_desc"}:
+        priced = [r for r in out if r["sort_price_cents"] is not None]
+        unpriced = [r for r in out if r["sort_price_cents"] is None]
+        priced.sort(key=lambda r: r["sort_price_cents"], reverse=sort == "price_desc")
+        out = priced + unpriced
+    for r in out:
+        r.pop("sort_price_cents", None)
     return out
 
 

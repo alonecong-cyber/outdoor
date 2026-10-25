@@ -37,7 +37,7 @@ export function QuoteList({ channels, bestListingId }: { channels: ChannelQuote[
       {barWidth != null && <div className="quote-bar" aria-hidden="true"><span className={isLowest ? "is-lowest" : ""} style={{ width: `${barWidth}%` }} /></div>}
       {verified && <div className="quote-breakdown"><div>当下实付<strong>{hasPrice(quote.paid_now_cents) ? money(quote.paid_now_cents, quote.currency) : "尚未提供"}</strong></div><div>事后返利<strong>{quote.rebate_cents != null ? money(quote.rebate_cents, quote.currency) : "尚未提供"}</strong></div></div>}
       {!!quote.steps?.length && <details className="quote-steps"><summary>优惠计算明细<Icon name="chevron" /></summary><ol>{quote.steps.map((step, index) => <li key={`${step.promo_id}-${index}`}><span>{step.promo_name || promoName(step.kind)} · {money(step.amount_before_cents, quote.currency)} → {money(step.amount_after_cents, quote.currency)}</span>{step.note && <p>{step.note}</p>}</li>)}</ol></details>}
-      {!isCny && <Link href={`/calculator?tab=overseas${quote.currency === "USD" && hasPrice(quote.price_cents) ? `&usd=${quote.price_cents / 100}` : ""}`} className="text-link mt-4">核算海淘落地成本<Icon name="arrow" /></Link>}
+      {!isCny && <p className="mt-4 text-[11px] text-dim">原币商品价；美国税费、转运费与汇率需自行核算，暂不与人民币价合并比价。</p>}
       <div className="quote-footer"><span>{quote.checked_at ? `${verified ? "最近核验" : "最近检查"} ${timeAgo(quote.checked_at)}` : "暂无检查时间"}{quote.source ? ` · ${quote.source}` : ""}</span>{url && <a href={url} target="_blank" rel="noopener noreferrer" className="text-link">{verified ? "前往渠道核对" : "查看报价来源"}<Icon name="external" /></a>}</div>
     </article>;
   })}</div>;

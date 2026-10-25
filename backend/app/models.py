@@ -226,6 +226,55 @@ class Deal(SQLModel, table=True):
 
 
 # ---------------------------------------------------------------------------
+# 关注列表（watch）：关注「商品需求」，不是一条线报
+# ---------------------------------------------------------------------------
+
+
+class ProductWatch(SQLModel, table=True):
+    """关注的一个商品需求：关键词/必须词/排除词 + 目标价 + 允许平台。"""
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    name: str  # 显示名，如 "Beta AR 男款"
+    keywords_json: str = "[]"  # 搜索词；空 = 用 name
+    must_words_json: str = "[]"  # 标题须全部包含
+    exclude_words_json: str = "[]"  # 命中任一则排除
+    target_price_cents: int = 0  # 0 = 不设目标价
+    currency: str = "CNY"
+    qty: int = 1  # 需要数量（提醒文案用）
+    platforms_json: str = "[]"  # 允许渠道（京东/天猫…）；空 = 全部
+    active: bool = True
+    last_checked_at: NaiveDatetime | None = None
+    last_result: str = ""  # 上次检查的一句话结果
+    last_low_price_cents: int = 0  # 自开始记录以来的最低线报价（0 = 尚无）
+    created_at: NaiveDatetime = SQLField(default_factory=utc_now)
+
+
+class WatchAlert(SQLModel, table=True):
+    """关注命中记录：哪条线报触发、为什么、是否已外发。24h 内同关注同线报同类型不重复。"""
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    watch_id: int = SQLField(foreign_key="productwatch.id", index=True)
+    deal_id: int = SQLField(foreign_key="deal.id", index=True)
+    kind: str  # target_hit / new_low
+    price_cents: int
+    reason: str = ""  # 为什么提醒（可解释）
+    created_at: NaiveDatetime = SQLField(default_factory=utc_now, index=True)
+    sent_at: NaiveDatetime | None = None
+    send_error: str = ""
+
+    __table_args__ = (UniqueConstraint("watch_id", "deal_id", "kind", "created_at"),)
+
+
+class DealNote(SQLModel, table=True):
+    """个人备注（不做社区评论；讨论入口是线报原帖链接）。"""
+
+    id: int | None = SQLField(default=None, primary_key=True)
+    deal_id: int = SQLField(foreign_key="deal.id", index=True)
+    body: str
+    created_at: NaiveDatetime = SQLField(default_factory=utc_now)
+
+
+# ---------------------------------------------------------------------------
 # 采集器统一产出（pydantic，非表）
 # ---------------------------------------------------------------------------
 

@@ -107,24 +107,25 @@ class ShopifyCollector:
 
 
 def discounted_deal_drafts(
-    raws: Iterable[RawListing], *, source: str = "evo"
+    raws: Iterable[RawListing],
 ) -> list[tuple[object, list[RawListing]]]:
     """在售且有折扣的变体按商品聚合为 (DealDraft, 变体列表)。
 
-    一个商品一条线报：price = 该商品在售变体最低现价，
-    summary 标注原价与折扣幅度，currency=USD。
+    一个商品一条线报：price = 该商品在售变体最低现价，summary 标注原价与
+    折扣幅度；source = 渠道 slug（evo_us / gearx_us…），source_id = 商品 handle。
     """
     from app.models import DealDraft
 
-    by_product: dict[tuple[str, str], list[RawListing]] = {}
+    by_product: dict[tuple[str, str, str], list[RawListing]] = {}
     for raw in raws:
         if raw.in_stock and 0 < raw.price_cents < raw.list_price_cents:
-            by_product.setdefault((raw.url, raw.title), []).append(raw)
+            by_product.setdefault((raw.channel_slug, raw.url, raw.title), []).append(raw)
     drafts: list[tuple[DealDraft, list[RawListing]]] = []
     now = utc_now()
-    for (url, title), variants in by_product.items():
+    for (channel_slug, url, title), variants in by_product.items():
         best = min(variants, key=lambda r: r.price_cents)
         discount = round((1 - best.price_cents / best.list_price_cents) * 100)
+        store = url.split("/")[2].removeprefix("www.") if "//" in url else channel_slug
         summary = (
             f"原价 ${best.list_price_cents / 100:.2f} → 现价 ${best.price_cents / 100:.2f}"
             f"（约 -{discount}%，{len(variants)} 个规格在售）"
@@ -132,16 +133,16 @@ def discounted_deal_drafts(
         drafts.append(
             (
                 DealDraft(
-                    source=source,
+                    source=channel_slug,
                     source_id=url.rsplit("/", 1)[-1],
                     url=url,
                     title=title,
                     summary=summary,
                     price_cents=best.price_cents,
                     currency="USD",
-                    channel="evo",
+                    channel=store,
                     image=best.image,
-                    tags=["美国零售", "evo"],
+                    tags=["美国零售", store],
                     published_at=now,
                     checked_at=now,
                 ),
@@ -151,13 +152,13 @@ def discounted_deal_drafts(
     return drafts
 
 
-def ingest_discount_deals(session, raws: Iterable[RawListing], *, source: str = "evo") -> dict:
+def ingest_discount_deals(session, raws: Iterable[RawListing]) -> dict:
     """折扣线报落库：先款式名精确匹配挂变体，并不上再用标题哈希聚档。"""
     from app.deals import grow_variant, save_deal
     from app.ingestion import resolve_variant
 
     saved = created = matched = 0
-    for draft, variants in discounted_deal_drafts(raws, source=source):
+    for draft, variants in discounted_deal_drafts(raws):
         deal, is_new = save_deal(session, draft, grow_catalog=False)  # type: ignore[arg-type]
         vid = None
         for raw in variants:

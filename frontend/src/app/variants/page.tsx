@@ -16,29 +16,41 @@ export default function VariantsPage() {
   const [brand, setBrand] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState("");
   const [visible, setVisible] = useState(24);
-  useEffect(() => setVisible(24), [brand, query, category]);
-  const variants = useQuery({ queryKey: ["variants", brand], queryFn: () => api.variants({ brand }) });
+  useEffect(() => setVisible(24), [brand, query, category, sort]);
   const trimmed = query.trim();
+  // 服务端搜索：q/brand/sort 交给后端（含品牌中文名）；类别是轻量标题关键词，保留在前端。
+  const variants = useQuery({
+    queryKey: ["variants", brand, trimmed, sort],
+    queryFn: () => api.variants({ brand, q: trimmed || undefined, sort: sort || undefined }),
+  });
   useEffect(() => {
-    const initial = new URLSearchParams(window.location.search).get("q");
+    const params = new URLSearchParams(window.location.search);
+    const initial = params.get("q");
     if (initial) setQuery(initial);
+    const initialSort = params.get("sort");
+    if (initialSort === "price_asc" || initialSort === "price_desc") setSort(initialSort);
   }, []);
   const dealHits = useQuery({
     queryKey: ["deal-hits", trimmed],
     queryFn: () => api.deals({ q: trimmed, limit: 6 }),
     enabled: trimmed.length > 1,
   });
-  const filtered = useMemo(() => (variants.data ?? []).filter((variant) => {
-    const text = `${variant.brand_name} ${variant.style_name} ${officialStyleNumber(variant.style_number)} ${variant.color} ${variant.size} ${variant.category}`;
-    return text.toLowerCase().includes(query.trim().toLowerCase()) && matchesCategory(text, category);
-  }).sort((a, b) => Number(isConfirmed(b.match_status)) - Number(isConfirmed(a.match_status))), [variants.data, query, category]);
-  const reset = () => { setQuery(""); setBrand(""); setCategory("all"); };
+  const filtered = useMemo(() => {
+    const rows = (variants.data ?? []).filter((variant) => {
+      const text = `${variant.brand_name} ${variant.style_name} ${officialStyleNumber(variant.style_number)} ${variant.color} ${variant.size} ${variant.category}`;
+      return matchesCategory(text, category);
+    });
+    if (sort) return rows; // 价格排序由后端给出
+    return rows.sort((a, b) => Number(isConfirmed(b.match_status)) - Number(isConfirmed(a.match_status)));
+  }, [variants.data, category, sort]);
+  const reset = () => { setQuery(""); setBrand(""); setCategory("all"); setSort(""); };
   return <main>
     <SiteHeader kicker="GEAR INDEX" />
     <section className="catalog-intro rise"><div><p className="eyebrow">THE GEAR INDEX / 找到你的下一件装备</p><h1>装备各有长处，价格有据可查。</h1><p>按品牌、型号与规格找装备，核对每一条价格线索。</p></div><p className="catalog-intro-note">已确认规格与待补齐线索分明展示。核验报价、历史线报价分别标注。</p></section>
-    <BrowseControls query={query} setQuery={setQuery} brand={brand} setBrand={setBrand} category={category} setCategory={setCategory} placeholder="搜索型号、颜色、尺码…" />
-    <section aria-labelledby="catalog-results"><div className="section-heading"><h2 id="catalog-results">装备目录<small>{variants.data ? `${filtered.length} 个规格` : "GEAR INDEX"}</small></h2><span>同款同色同码，才有比较意义</span></div>
+    <BrowseControls query={query} setQuery={setQuery} brand={brand} setBrand={setBrand} category={category} setCategory={setCategory} sort={sort} setSort={setSort} placeholder="搜索品牌、型号、颜色、尺码…" />
+    <section aria-labelledby="catalog-results"><div className="section-heading"><h2 id="catalog-results">装备目录<small>{variants.data ? `${filtered.length} 个规格` : "GEAR INDEX"}</small></h2><span>{sort ? "已按价格排序" : "同款同色同码，才有比较意义"}</span></div>
       {variants.isPending ? <DealSkeletons /> : variants.isError ? <div className="empty-state"><Icon name="grid" /><h2>目录暂时无法加载</h2><p>请稍后重新载入装备目录。</p><button type="button" className="btn btn-ghost" onClick={() => void variants.refetch()}>重新加载</button></div> : filtered.length ? <>
         <ul className="deal-grid">{filtered.slice(0, visible).map((variant, index) => {
         const confirmed = isConfirmed(variant.match_status);

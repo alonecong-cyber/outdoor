@@ -207,6 +207,48 @@ export type DealDetail = DealItem & {
   min_price_cents?: number | null;
 };
 
+export type WatchAlertItem = {
+  id: number;
+  kind: string;
+  price_cents: number;
+  reason: string;
+  deal_title: string;
+  deal_url: string;
+  channel: string;
+  created_at: string | null;
+  sent_at: string | null;
+  send_error: string;
+};
+
+export type WatchItem = {
+  id: number;
+  name: string;
+  keywords: string[];
+  must_words: string[];
+  exclude_words: string[];
+  target_price_cents: number;
+  currency: string;
+  qty: number;
+  platforms: string[];
+  active: boolean;
+  last_checked_at: string | null;
+  last_result: string;
+  created_at: string | null;
+};
+
+export type WatchInput = {
+  name: string;
+  keywords?: string[];
+  must_words?: string[];
+  exclude_words?: string[];
+  target_price?: number; // 元；0 = 不设
+  currency?: string;
+  qty?: number;
+  platforms?: string[];
+};
+
+export type DealNoteItem = { id: number; body: string; created_at: string };
+
 export type SiteStatus = {
   scheduler_enabled: boolean;
   last_deal_update: string | null;
@@ -242,9 +284,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  variants: (params: { brand?: string } = {}) => {
-    const q = params.brand ? `?brand=${encodeURIComponent(params.brand)}` : "";
-    return request<VariantListItem[]>(`/api/variants${q}`);
+  variants: (params: { brand?: string; q?: string; sort?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.brand) qs.set("brand", params.brand);
+    if (params.q) qs.set("q", params.q);
+    if (params.sort) qs.set("sort", params.sort);
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<VariantListItem[]>(`/api/variants${suffix}`);
   },
   variant: (id: number) => request<VariantDetail>(`/api/variants/${id}`),
   variantPlan: (id: number) => request<VariantPlan>(`/api/variants/${id}/plan`),
@@ -283,14 +329,30 @@ export const api = {
     request<{ ok: boolean; error: string | null }>(`/api/alerts/events/${id}/send`, {
       method: "POST",
     }),
-  deals: (params: { q?: string; brand?: string; limit?: number } = {}) => {
+  deals: (params: { q?: string; brand?: string; channel?: string; sort?: string; limit?: number } = {}) => {
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
     if (params.brand) qs.set("brand", params.brand);
+    if (params.channel) qs.set("channel", params.channel);
+    if (params.sort) qs.set("sort", params.sort);
     if (params.limit) qs.set("limit", String(params.limit));
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return request<DealItem[]>(`/api/deals${suffix}`);
   },
+  dealNotes: (id: number) => request<DealNoteItem[]>(`/api/deals/${id}/notes`),
+  addDealNote: (id: number, body: string) =>
+    request<DealNoteItem>(`/api/deals/${id}/notes`, { method: "POST", body: JSON.stringify({ body }) }),
+  deleteDealNote: (id: number, noteId: number) =>
+    request<void>(`/api/deals/${id}/notes/${noteId}`, { method: "DELETE" }),
+  watches: () => request<WatchItem[]>("/api/watch"),
+  createWatch: (body: WatchInput) => request<WatchItem>("/api/watch", { method: "POST", body: JSON.stringify(body) }),
+  updateWatch: (id: number, body: WatchInput) =>
+    request<WatchItem>(`/api/watch/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  setWatchActive: (id: number, active: boolean) =>
+    request<{ ok: boolean; active: boolean }>(`/api/watch/${id}/active?active=${active}`, { method: "POST" }),
+  deleteWatch: (id: number) => request<void>(`/api/watch/${id}`, { method: "DELETE" }),
+  checkWatches: () => request<{ checked: number; triggered: number } & Record<string, unknown>>("/api/watch/check", { method: "POST" }),
+  watchAlerts: (id: number) => request<WatchAlertItem[]>(`/api/watch/${id}/alerts`),
   ingestDeals: (details = 5) =>
     request<IngestResult>(`/api/deals/ingest?details=${details}`, { method: "POST" }),
 };

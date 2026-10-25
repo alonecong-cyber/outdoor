@@ -99,7 +99,7 @@ def test_discounted_deal_drafts_and_ingest(tmp_path):
     drafts = discounted_deal_drafts(raws)
     assert drafts, "fixture 应包含在售折扣商品"
     draft, variants = drafts[0]
-    assert draft.source == "evo" and draft.currency == "USD"
+    assert draft.source == "evo_us" and draft.currency == "USD"
     assert draft.price_cents < 65000  # 折扣价
     assert "原价" in draft.summary and "现价" in draft.summary
 
@@ -112,6 +112,6 @@ def test_discounted_deal_drafts_and_ingest(tmp_path):
         assert again["saved"] == len(drafts) and again["created"] == 0
         from app.models import Deal
 
-        deals = session.exec(select(Deal).where(Deal.source == "evo")).all()
+        deals = session.exec(select(Deal).where(Deal.source == "evo_us")).all()
         assert len(deals) == len(drafts)
         assert all(d.matched_variant_id for d in deals)
