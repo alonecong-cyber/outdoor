@@ -251,6 +251,54 @@ def ingest_smzdm_deals(
                     logger.warning("线报复核失败 %s: %s", deal.source_id, exc)
         remaining = max_details - len(drafts)
         collect = getattr(collector, "collect_categories", None)
+        # 摘要优先铺广度：品类列表页 1 请求≈30 条（仅标题/价格/图/渠道），
+        # 让搜索语料快速长出来；缺的详情由下面的补全预算逐步回填。
+        summarize = getattr(collector, "collect_category_summaries", None)
+        if summarize is not None:
+            try:
+                drafts.extend(
+                    summarize(
+                        pages=1,
+                        exclude_ids=known_source_ids(session, fresh_only=True)
+                        | {d.source_id for d in drafts},
+                        limit=60,
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001 - 摘要失败不拖垮详情采集
+                logger.warning("线报摘要采集失败: %s", exc)
+        # 详情预算流向「摘要入库但缺图/缺价」的存量，按新→旧补全
+        if remaining > 0:
+            before_enrich = len(drafts)
+            try:
+                from sqlalchemy import or_
+
+                from app.models import Deal
+
+                sparse = list(
+                    session.exec(
+                        select(Deal)
+                        .where(
+                            Deal.source == "smzdm",
+                            or_(Deal.image == "", Deal.price_cents == 0),
+                        )
+                        .order_by(Deal.id.desc())
+                        .limit(remaining)
+                    ).all()
+                )
+                fetch_page = getattr(collector, "fetch_page", None)
+                if fetch_page and sparse:
+                    from app.collectors.smzdm import parse_deal_page
+
+                    for deal in sparse:
+                        try:
+                            drafts.append(
+                                parse_deal_page(fetch_page(deal.url), deal.url)
+                            )
+                        except Exception as exc:  # noqa: BLE001 - 单条失败继续
+                            logger.warning("线报补全失败 %s: %s", deal.source_id, exc)
+            except Exception as exc:  # noqa: BLE001 - 补全失败不拖垮主流程
+                logger.warning("线报补全查询失败: %s", exc)
+            remaining = max(0, remaining - (len(drafts) - before_enrich))
         if remaining and collect is not None:
             exclude = known_source_ids(session, fresh_only=True) | {d.source_id for d in drafts}
             drafts.extend(collect(exclude_ids=exclude, limit=remaining))
