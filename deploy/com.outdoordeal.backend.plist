@@ -6,25 +6,18 @@
     <string>com.outdoordeal.backend</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/lance/Documents/pi/outdoordeal/backend/.venv/bin/python</string>
-        <string>-m</string>
-        <string>uvicorn</string>
-        <string>app.main:app</string>
-        <string>--host</string>
-        <string>127.0.0.1</string>
-        <string>--port</string>
-        <string>8000</string>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>cd /Users/lance/Documents/pi/outdoordeal/backend &amp;&amp; exec /Users/lance/Documents/pi/outdoordeal/backend/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000</string>
     </array>
-    <key>WorkingDirectory</key>
-    <string>/Users/lance/Documents/pi/outdoordeal/backend</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/lance/Documents/pi/outdoordeal/backend/var/uvicorn.log</string>
+    <string>/Users/lance/Library/Logs/outdoordeal/backend.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/lance/Documents/pi/outdoordeal/backend/var/uvicorn.err.log</string>
+    <string>/Users/lance/Library/Logs/outdoordeal/backend.err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>DB_PATH</key>

@@ -23,15 +23,24 @@ launchctl load ~/Library/LaunchAgents/com.outdoordeal.backend.plist
 launchctl load ~/Library/LaunchAgents/com.outdoordeal.frontend.plist
 ```
 
-- 后端：`http://127.0.0.1:8000`（uvicorn，`KeepAlive` 自动拉起，日志在 `backend/var/uvicorn.log`）
+- 后端：`http://127.0.0.1:8000`（uvicorn，`KeepAlive` 自动拉起，日志在 `~/Library/Logs/outdoordeal/`）
 - 前端：`http://127.0.0.1:3000`（`next start`，`/api/*` 同源反代到后端）
+
+## macOS 注意事项（踩过的坑）
+
+- plist 里不要写 `WorkingDirectory` 指向 `~/Documents` 下目录：macOS TCC 会拒绝
+  launchd 子进程预执行 chdir，job 反复以 `EX_CONFIG (78)` 失败。工作目录改为在
+  `zsh -lc` 命令内 `cd`（两个 plist 均已如此）。
+- 后端日志放 `~/Library/Logs/outdoordeal/`（launchd 对 Documents 内日志文件的
+  创建行为不可靠）；前端日志在 `frontend/var/`。
+- `SCHEDULER_ENABLED=true` 已写入 `backend/.env`，定时采集/线报/关注检查默认开启。
 
 ## 日常操作
 
 ```bash
 launchctl list | grep outdoordeal          # 查看状态
 launchctl kickstart -k gui/$UID/com.outdoordeal.backend   # 重启后端
-tail -f backend/var/uvicorn.err.log        # 排错
+tail -f ~/Library/Logs/outdoordeal/backend.err.log        # 排错
 launchctl unload ~/Library/LaunchAgents/com.outdoordeal.frontend.plist  # 停止
 ```
 
