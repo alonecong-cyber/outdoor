@@ -4,11 +4,10 @@ import time
 import urllib.parse
 import urllib.request
 
-import httpx
 from sqlmodel import Session
 
-from app.collectors.smzdm import SMZDM_HOST, SmzdmFeedCollector, parse_deal_page
 from app.collectors.base import fetch_with_backoff
+from app.collectors.smzdm import SMZDM_HOST, SmzdmFeedCollector, parse_deal_page
 from app.db import get_engine, init_db
 from app.deals import ingest_deals
 
@@ -27,7 +26,8 @@ def ddg_ids(query: str, proxy: str) -> set[int]:
     url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh)"})
     handler = urllib.request.ProxyHandler({"http": proxy, "https": proxy})
-    html = urllib.request.build_opener(handler).open(req, timeout=20).read().decode("utf-8", "ignore")
+    resp = urllib.request.build_opener(handler).open(req, timeout=20)
+    html = resp.read().decode("utf-8", "ignore")
     ids = set()
     for enc in re.findall(r'uddg=([^&"<]+)', html):
         real = urllib.parse.unquote(enc)
