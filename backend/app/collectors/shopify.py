@@ -29,6 +29,10 @@ def _variant_image(variant: dict, product: dict) -> str:
     if not src:
         top = product.get("image") or {}
         src = top.get("src") or ""
+    if not src:
+        gallery = product.get("images") or []
+        if gallery:
+            src = gallery[0].get("src") or ""
     return str(src)
 
 
