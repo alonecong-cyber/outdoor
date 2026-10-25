@@ -24,6 +24,8 @@ export default function DealFeedPage() {
     const params = new URLSearchParams(window.location.search);
     const initial = params.get("q");
     if (initial) setQuery(initial);
+    const initialBrand = params.get("brand");
+    if (initialBrand) setBrand(initialBrand);
     const initialSort = params.get("sort");
     if (initialSort === "price_asc" || initialSort === "price_desc") setSort(initialSort);
   }, []);
@@ -51,7 +53,7 @@ export default function DealFeedPage() {
       {deals.isPending ? <DealSkeletons /> : deals.isError ? <div className="empty-state"><Icon name="mountain" /><h2>优惠暂时没有加载出来</h2><p>连接恢复后可重新载入已有线报。</p><button type="button" className="btn btn-ghost" onClick={() => void deals.refetch()}>重新加载</button></div> : filtered.length > 0 ? <>
         <ul className="deal-grid">{filtered.slice(0, visible).map((deal, index) => <DealCard key={deal.id} deal={deal} index={index} />)}</ul>
         {filtered.length > visible && <div className="load-more"><button type="button" className="btn btn-ghost" onClick={() => setVisible((count) => count + 24)}>加载更多线报<small className="ml-2 text-dim">还有 {filtered.length - visible} 条</small></button></div>}
-      </> : <div className="empty-state"><Icon name="search" /><h2>暂时没有符合条件的装备</h2><p>试试其他关键词，或查看全部装备。</p><button type="button" className="btn btn-ghost" onClick={reset}>清除筛选</button></div>}
+      </> : <div className="empty-state"><Icon name="search" /><h2>{query ? `没有找到「${query}」` : "暂时没有符合条件的装备"}</h2><p>{query && brand ? "当前品牌范围内没有结果，品牌范围可能太窄。" : "试试其他关键词，或查看全部装备。"}</p>{query && brand && <button type="button" className="btn-primary" onClick={() => setBrand("")}>在全部品牌中搜「{query}」</button>}<button type="button" className="btn btn-ghost" onClick={reset}>清除筛选</button></div>}
       <p className="results-note">线报价格来自来源文章，可能已过期或附有特定条件。进入详情核对适用规格、优惠说明与核验状态。价格排序按已折算的人民币口径。</p>
     </section>
   </main>;
