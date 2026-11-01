@@ -1,4 +1,5 @@
 """DDG 定向品牌补种：搜 site:smzdm.com <品牌>，抓详情入库。"""
+
 import re
 import time
 import urllib.parse
@@ -22,6 +23,7 @@ QUERIES = [
     "site:smzdm.com 软壳 男",
 ]
 
+
 def ddg_ids(query: str, proxy: str) -> set[int]:
     url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Macintosh)"})
@@ -35,6 +37,7 @@ def ddg_ids(query: str, proxy: str) -> set[int]:
         if m:
             ids.add(int(m.group(1)))
     return ids
+
 
 init_db()
 proxy = "http://127.0.0.1:7890"

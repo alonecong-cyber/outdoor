@@ -113,6 +113,9 @@ export default function RankingsPage() {
     { id: "all", name: "全部来源" },
     { id: "OutdoorGearLab", name: "OutdoorGearLab（实验室打分）" },
     { id: "Switchback", name: "Switchback Travel（编辑榜单）" },
+    { id: "什么值得买", name: "什么值得买（国内好价/原创）" },
+    { id: "B站", name: "B站（测评视频）" },
+    { id: "国货", name: "国货品牌" },
   ];
 
   const priceTiers = [
@@ -157,9 +160,9 @@ export default function RankingsPage() {
             <span>看懂差价买到了什么。</span>
           </h1>
           <p>
-            数据来自 OutdoorGearLab 实验室打分 + Switchback Travel 编辑榜单，每款都可点回原文核对；
+            数据来自 OutdoorGearLab 实验室打分 + Switchback Travel 编辑榜单，叠加什么值得买好价 / 原创测评与 B站视频等国内口碑，每款都可点回原文核对；
             <br className="hidden sm:inline" />
-            {categoriesQuery.data ? `${categoriesQuery.data.length} 个品类 · ${categoriesQuery.data.reduce((n, c) => n + c.total_count, 0)} 款装备 · ${brandsQuery.data && category === "all" ? brandsQuery.data.length + " 个品牌 · " : ""}` : ""}国内口碑一键跳什么值得买 / 小红书 / B站。
+            {categoriesQuery.data ? `${categoriesQuery.data.length} 个品类 · ${categoriesQuery.data.reduce((n, c) => n + c.total_count, 0)} 款装备 · ${brandsQuery.data && category === "all" ? brandsQuery.data.length + " 个品牌 · " : ""}` : ""}优缺点与评价已译成中文。
           </p>
         </div>
 

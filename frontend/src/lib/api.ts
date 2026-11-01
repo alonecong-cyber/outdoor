@@ -55,6 +55,31 @@ export type ReviewAuthority = {
   url?: string;
   rank?: number | null;
   rank_total?: number | null;
+  badge_zh?: string;
+  quote_zh?: string;
+};
+
+export type CnContent = {
+  platform: string;
+  kind: string;
+  title: string;
+  url: string;
+  author?: string;
+  metric_label?: string;
+  metric_value?: number;
+  date?: string;
+  cover?: string;
+  price_cny?: number | null;
+  mall?: string;
+  summary?: string;
+};
+
+export type CnPrice = {
+  min_cny: number;
+  median_cny: number;
+  count: number;
+  latest_date?: string;
+  malls?: string[];
 };
 
 export type ExternalLink = { label: string; url: string };
@@ -116,6 +141,13 @@ export type GearRankingItem = {
   sub_scores?: Record<string, number>;
   cn_links?: ExternalLink[];
   buy_links?: ExternalLink[];
+  pros_zh?: string[];
+  cons_zh?: string[];
+  sub_scores_zh?: Record<string, string>;
+  is_cn_brand?: boolean;
+  cn_price?: CnPrice | null;
+  cn_query?: string;
+  cn_reviews?: CnContent[];
 };
 
 export type CategoryMeta = {

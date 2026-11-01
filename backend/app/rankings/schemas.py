@@ -51,6 +51,8 @@ class ReviewAuthority(BaseModel):
     url: str = ""  # 出处链接（评测页 / 榜单页）
     rank: int | None = None  # 该榜单内排名
     rank_total: int | None = None  # 该榜单参评总数
+    badge_zh: str = ""  # 奖项中文译名
+    quote_zh: str = ""  # 评价中文译文（机器翻译 + 术语校正）
 
 
 class GearSpec(BaseModel):
@@ -68,6 +70,33 @@ class GearSpec(BaseModel):
 class ExternalLink(BaseModel):
     label: str  # 如 "什么值得买"、"小红书"
     url: str
+
+
+class CnContent(BaseModel):
+    """国内平台内容：什么值得买好价/原创、B站视频、小红书笔记。"""
+
+    platform: str  # 什么值得买 / B站 / 小红书
+    kind: str  # 好价 / 测评文章 / 视频 / 笔记
+    title: str
+    url: str
+    author: str = ""
+    metric_label: str = ""  # 值 / 收藏 / 播放 / 点赞
+    metric_value: int = 0
+    date: str = ""
+    cover: str = ""
+    price_cny: float | None = None
+    mall: str = ""
+    summary: str = ""
+
+
+class CnPrice(BaseModel):
+    """什么值得买好价汇总（已剔除离群价）。"""
+
+    min_cny: float
+    median_cny: float
+    count: int
+    latest_date: str = ""
+    malls: list[str] = Field(default_factory=list)
 
 
 class PriceGuide(BaseModel):
@@ -109,6 +138,13 @@ class GearRankingItem(BaseModel):
     sub_scores: dict[str, float] = Field(default_factory=dict)  # 分项评分（满分 10）
     cn_links: list[ExternalLink] = Field(default_factory=list)  # 国内口碑/购买检索
     buy_links: list[ExternalLink] = Field(default_factory=list)  # 海外购买/评测
+    pros_zh: list[str] = Field(default_factory=list)  # 优点中文
+    cons_zh: list[str] = Field(default_factory=list)  # 缺点中文
+    sub_scores_zh: dict[str, str] = Field(default_factory=dict)  # 分项名 英→中
+    is_cn_brand: bool = False  # 国货品牌
+    cn_price: CnPrice | None = None  # 国内好价汇总
+    cn_query: str = ""  # 国内检索关键词
+    cn_reviews: list[CnContent] = Field(default_factory=list)  # 国内口碑内容
 
 
 class CategoryMeta(BaseModel):

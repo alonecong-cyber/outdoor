@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import type { CompareMatrixResponse, GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
-import { GearImage, rankLabel } from "@/components/rankings/RankingCard";
+import { CnReviewList, GearImage, cnPriceLabel, rankLabel } from "@/components/rankings/RankingCard";
 
 type Row = { label: string; render: (it: GearRankingItem) => ReactNode; best?: (it: GearRankingItem) => number | null; higherIsBetter?: boolean };
 
@@ -21,6 +21,7 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
   const { items, gap_summary, category_name } = matrix;
 
   const subKeys = Array.from(new Set(items.flatMap((it) => Object.keys(it.sub_scores ?? {}))));
+  const subName = (k: string) => items.find((it) => it.sub_scores_zh?.[k])?.sub_scores_zh?.[k] || k;
   const specKeys = Array.from(new Set(items.flatMap((it) => Object.keys(it.spec_table ?? {}))));
 
   const rows: Row[] = [
@@ -28,15 +29,31 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
     { label: "款式", render: (it) => `${it.gender_name ?? ""} · ${it.price_tier_name}` },
     {
       label: "美标价",
-      render: (it) => (
-        <span className="font-mono">
-          {it.price_guide.overseas_usd} <span className="text-[#687366]">{it.price_guide.deal_cny}</span>
-        </span>
-      ),
+      render: (it) =>
+        it.price_guide.overseas_usd ? (
+          <span className="font-mono">
+            {it.price_guide.overseas_usd} <span className="text-[#687366]">{it.price_guide.deal_cny}</span>
+          </span>
+        ) : (
+          <span className="text-[#889280]">国内款</span>
+        ),
+    },
+    {
+      label: "国内好价（什么值得买）",
+      render: (it) =>
+        it.cn_price ? (
+          <span className="font-mono font-semibold text-[#9a3b22]" title={(it.cn_price.malls ?? []).join("、")}>
+            {cnPriceLabel(it)} <span className="font-normal text-[#687366]">· {it.cn_price.count} 条</span>
+          </span>
+        ) : (
+          <span className="text-[#889280]">暂无</span>
+        ),
+      best: (it) => it.cn_price?.min_cny ?? null,
+      higherIsBetter: false,
     },
     {
       label: "海淘落地估算",
-      render: (it) => <span className="font-mono font-semibold">{it.price_guide.overseas_landed_cny}</span>,
+      render: (it) => <span className="font-mono font-semibold">{it.price_guide.overseas_landed_cny || "—"}</span>,
       best: (it) => it.price_guide.price_cents,
       higherIsBetter: false,
     },
@@ -59,7 +76,7 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
           {it.authorities.map((a, i) => (
             <li key={i}>
               <a href={a.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                <strong>{a.source}</strong> <span className="font-mono">{rankLabel(a)}</span> {a.badge}
+                <strong>{a.source}</strong> <span className="font-mono">{rankLabel(a)}</span> {a.badge_zh || a.badge}
               </a>
             </li>
           ))}
@@ -67,7 +84,7 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
       ),
     },
     ...subKeys.map<Row>((k) => ({
-      label: `分项：${k}`,
+      label: `分项：${subName(k)}`,
       render: (it) => {
         const v = it.sub_scores?.[k];
         return v == null ? "—" : (
@@ -84,12 +101,32 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
     })),
     { label: "重量", render: (it) => it.specs.weight || "—" },
     ...specKeys.map<Row>((k) => ({ label: k, render: (it) => it.spec_table?.[k] ?? "—" })),
-    { label: "优点", render: (it) => <ul className="list-disc pl-4">{it.pros.map((p) => <li key={p}>{p}</li>)}</ul> },
-    { label: "缺点", render: (it) => <ul className="list-disc pl-4">{it.cons.map((p) => <li key={p}>{p}</li>)}</ul> },
+    {
+      label: "优点",
+      render: (it) => (
+        <ul className="list-disc pl-4">
+          {(it.pros_zh?.length ? it.pros_zh : it.pros).map((p, i) => (
+            <li key={`${p}-${i}`} title={it.pros[i]}>{p}</li>
+          ))}
+        </ul>
+      ),
+    },
+    {
+      label: "缺点",
+      render: (it) => (
+        <ul className="list-disc pl-4">
+          {(it.cons_zh?.length ? it.cons_zh : it.cons).map((p, i) => (
+            <li key={`${p}-${i}`} title={it.cons[i]}>{p}</li>
+          ))}
+        </ul>
+      ),
+    },
     { label: "差价分析", render: (it) => it.gap_analysis },
     {
       label: "国内口碑",
       render: (it) => (
+        <div className="space-y-1.5">
+          <CnReviewList item={it} limit={4} />
         <span className="flex flex-wrap gap-1">
           {(it.cn_links ?? []).map((l) => (
             <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer" className="px-1.5 py-0.5 rounded border border-[#dce0d4] bg-white hover:bg-[#f2f4ec]">
@@ -97,6 +134,7 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
             </a>
           ))}
         </span>
+        </div>
       ),
     },
   ];

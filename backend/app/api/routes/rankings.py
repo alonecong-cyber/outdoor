@@ -45,7 +45,7 @@ def list_rankings(
     category: GearCategory | None = None,
     tier: PriceTier | None = None,
     source: str | None = Query(
-        None, description="权威来源，如 OutdoorGearLab / Switchback / SMZDM 等"
+        None, description="来源，如 OutdoorGearLab / Switchback / 什么值得买 / B站 / 小红书 / 国货"
     ),
     brand: str | None = None,
     gender: str | None = Query(None, description="men / women / unisex"),
@@ -65,11 +65,12 @@ def list_rankings(
 
     if source:
         source_clean = source.strip().lower()
-        results = [
-            item
-            for item in results
-            if any(source_clean in auth.source.lower() for auth in item.authorities)
-        ]
+        if source_clean == "国货":
+            results = [item for item in results if item.is_cn_brand]
+        else:
+            results = [
+                item for item in results if any(source_clean in s for s in _item_sources(item))
+            ]
 
     if brand:
         brand_clean = brand.strip().lower()
@@ -133,13 +134,21 @@ def list_brands(category: GearCategory | None = None) -> list[BrandStat]:
     return sorted(stats.values(), key=lambda s: (-s.count, s.brand))
 
 
+def _item_sources(item: GearRankingItem, lower: bool = True) -> set[str]:
+    """权威榜单来源 + 国内口碑平台（什么值得买 / B站 / 小红书）。"""
+    srcs = {a.source for a in item.authorities} | {c.platform for c in item.cn_reviews}
+    return {s.lower() for s in srcs} if lower else srcs
+
+
 @router.get("/sources", response_model=list[SourceStat])
 def list_sources() -> list[SourceStat]:
     """权威来源及其覆盖产品数。"""
     counts: dict[str, int] = {}
     for item in RANKING_ITEMS:
-        for src in {a.source for a in item.authorities}:
+        for src in _item_sources(item, lower=False):
             counts[src] = counts.get(src, 0) + 1
+        if item.is_cn_brand:
+            counts["国货"] = counts.get("国货", 0) + 1
     return [SourceStat(source=k, count=v) for k, v in sorted(counts.items(), key=lambda x: -x[1])]
 
 

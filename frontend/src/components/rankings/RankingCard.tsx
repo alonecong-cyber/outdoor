@@ -27,6 +27,61 @@ export function GearImage({ item, className }: { item: GearRankingItem; classNam
   );
 }
 
+const PLATFORM_COLORS: Record<string, string> = {
+  什么值得买: "#c8102e",
+  B站: "#fb7299",
+  小红书: "#ff2442",
+};
+
+export function shortSource(source: string) {
+  return source === "Switchback Travel" ? "Switchback" : source === "OutdoorGearLab" ? "OGL" : source;
+}
+
+export function fmtCount(n?: number) {
+  if (!n) return "";
+  return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : String(n);
+}
+
+export function cnPriceLabel(item: GearRankingItem) {
+  const p = item.cn_price;
+  if (!p) return "";
+  const f = (v: number) => `¥${Math.round(v).toLocaleString()}`;
+  return p.min_cny === p.median_cny ? f(p.min_cny) : `${f(p.min_cny)}~${f(p.median_cny)}`;
+}
+
+/** 国内口碑内容列表：什么值得买原创/好价、B站视频、小红书笔记。 */
+export function CnReviewList({ item, limit = 6 }: { item: GearRankingItem; limit?: number }) {
+  const rows = (item.cn_reviews ?? []).slice(0, limit);
+  if (!rows.length) return null;
+  return (
+    <ul className="space-y-1">
+      {rows.map((c) => (
+        <li key={c.url} className="flex items-start gap-1.5">
+          <span
+            className="shrink-0 text-[9px] text-white px-1 rounded mt-0.5"
+            style={{ background: PLATFORM_COLORS[c.platform] || "#4a5547" }}
+          >
+            {c.platform}·{c.kind}
+          </span>
+          <a
+            href={c.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 hover:underline line-clamp-2"
+            title={c.summary || c.title}
+          >
+            {c.title}
+          </a>
+          <span className="shrink-0 font-mono text-[10px] text-[#687366]">
+            {c.price_cny ? `¥${Math.round(c.price_cny)}` : c.metric_value ? `${c.metric_label}${fmtCount(c.metric_value)}` : ""}
+            {c.date ? ` ${c.date.slice(2)}` : ""}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function rankLabel(a: { rank?: number | null; rank_total?: number | null }) {
   return a.rank ? `#${a.rank}${a.rank_total ? `/${a.rank_total}` : ""}` : "";
 }
@@ -43,6 +98,10 @@ export function RankingCard({
   const [showMore, setShowMore] = useState(false);
   const tier = TIER_COLORS[item.price_tier] || TIER_COLORS.budget;
   const subScores = Object.entries(item.sub_scores ?? {});
+  const zh = item.sub_scores_zh ?? {};
+  const isCnPick = item.id.startsWith("cn_");
+  const pros = item.pros_zh?.length ? item.pros_zh : item.pros;
+  const cons = item.cons_zh?.length ? item.cons_zh : item.cons;
 
   return (
     <article
@@ -69,8 +128,11 @@ export function RankingCard({
             </span>
           ) : (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#2b4c68] text-white" title={item.score_basis}>
-              编辑推荐
+              {isCnPick ? "国内口碑" : "编辑推荐"}
             </span>
+          )}
+          {item.is_cn_brand && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#be482b] text-white">国货</span>
           )}
           {item.gender_name && (
             <span className="text-[10px] px-2 py-0.5 rounded bg-white/90 text-[#4a5547] border border-[#dce0d4]">
@@ -118,24 +180,45 @@ export function RankingCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[10px] bg-[#f0f3eb] text-[#335338] px-2 py-0.5 rounded border border-[#d6decb] font-medium hover:bg-[#e3eadb]"
-                title={auth.quote}
+                title={`${auth.badge}${auth.quote ? `\n${auth.quote_zh || auth.quote}` : ""}`}
               >
                 <Icon name="award" className="w-3 h-3 text-[#1d4434]" />
-                <strong>{auth.source === "Switchback Travel" ? "Switchback" : auth.source === "OutdoorGearLab" ? "OGL" : auth.source}</strong>
+                <strong>{shortSource(auth.source)}</strong>
                 <span className="font-mono">{rankLabel(auth)}</span>
-                <span className="line-clamp-1 max-w-[150px]">{auth.badge}</span>
+                <span className="line-clamp-1 max-w-[150px]">{auth.badge_zh || auth.badge}</span>
               </a>
             ))}
           </div>
 
           <div className="p-2.5 rounded bg-[#f5f4ee] border border-[#e4e7dd] mb-3">
             <div className="flex items-baseline justify-between mb-1">
-              <div>
-                <span className="text-[10px] text-[#687366] mr-1">美标价</span>
-                <span className="text-base font-bold text-[#be482b] font-mono">{item.price_guide.overseas_usd}</span>
-                <span className="text-[11px] text-[#687366] font-mono ml-1.5">{item.price_guide.deal_cny}</span>
-              </div>
+              {item.price_guide.overseas_usd ? (
+                <div>
+                  <span className="text-[10px] text-[#687366] mr-1">美标价</span>
+                  <span className="text-base font-bold text-[#be482b] font-mono">{item.price_guide.overseas_usd}</span>
+                  <span className="text-[11px] text-[#687366] font-mono ml-1.5">{item.price_guide.deal_cny}</span>
+                </div>
+              ) : (
+                <div>
+                  <span className="text-[10px] text-[#687366] mr-1">国内好价</span>
+                  <span className="text-base font-bold text-[#be482b] font-mono">{cnPriceLabel(item) || item.price_guide.deal_cny}</span>
+                </div>
+              )}
             </div>
+            {item.cn_price && item.price_guide.overseas_usd && (
+              <div
+                className="text-[11px] text-[#9a3b22] flex items-center justify-between font-mono pt-1 border-t border-[#e3e7da]"
+                title={`什么值得买近期 ${item.cn_price.count} 条好价（剔除离群价），检索词「${item.cn_query}」`}
+              >
+                <span>国内好价（值得买 {item.cn_price.count} 条）</span>
+                <span className="font-semibold">{cnPriceLabel(item)}</span>
+              </div>
+            )}
+            {item.cn_price && !item.price_guide.overseas_usd && (
+              <div className="text-[10px] text-[#687366] pt-1 border-t border-[#e3e7da]">
+                什么值得买 {item.cn_price.count} 条好价 · {(item.cn_price.malls ?? []).join("、")}
+              </div>
+            )}
             {item.price_guide.overseas_landed_cny && (
               <div
                 className="text-[11px] text-[#456d80] flex items-center justify-between font-mono pt-1 border-t border-[#e3e7da]"
@@ -162,7 +245,7 @@ export function RankingCard({
             <div className="space-y-1 mb-3">
               {subScores.slice(0, 5).map(([k, v]) => (
                 <div key={k} className="flex items-center gap-2 text-[10px] text-[#4a5547]">
-                  <span className="w-32 truncate" title={k}>{k}</span>
+                  <span className="w-32 truncate" title={k}>{zh[k] || k}</span>
                   <span className="flex-1 h-1.5 bg-[#eceee5] rounded">
                     <span className="block h-1.5 rounded bg-[#1d4434]" style={{ width: `${v * 10}%` }} />
                   </span>
@@ -190,29 +273,29 @@ export function RankingCard({
           {showMore && (
             <div className="text-xs text-[#4b5847] leading-relaxed p-2.5 rounded bg-[#f3f6ee] border border-[#dce3d2] mb-3 space-y-2">
               <div>
-                <p className="font-medium text-[#2e5631]">👍 优点（测评原文）</p>
+                <p className="font-medium text-[#2e5631]">👍 优点{isCnPick ? "" : "（测评译文，悬停看原文）"}</p>
                 <ul className="list-disc pl-4">
-                  {item.pros.map((p) => (
-                    <li key={p}>{p}</li>
+                  {pros.map((p, i) => (
+                    <li key={`${p}-${i}`} title={item.pros[i]}>{p}</li>
                   ))}
                 </ul>
               </div>
               <div>
-                <p className="font-medium text-[#9a3b22]">👎 缺点（测评原文）</p>
+                <p className="font-medium text-[#9a3b22]">👎 缺点{isCnPick ? "" : "（测评译文，悬停看原文）"}</p>
                 <ul className="list-disc pl-4">
-                  {item.cons.map((p) => (
-                    <li key={p}>{p}</li>
+                  {cons.map((p, i) => (
+                    <li key={`${p}-${i}`} title={item.cons[i]}>{p}</li>
                   ))}
                 </ul>
               </div>
-              {item.authorities.some((a) => a.quote) && (
+              {!isCnPick && item.authorities.some((a) => a.quote) && (
                 <div>
                   <p className="font-medium text-[#1d4434]">📝 测评结论</p>
                   {item.authorities
                     .filter((a) => a.quote)
                     .map((a, i) => (
-                      <p key={i} className="italic">
-                        <strong className="not-italic">{a.source}：</strong>“{a.quote}”
+                      <p key={i} title={a.quote}>
+                        <strong>{a.source}：</strong>“{a.quote_zh || a.quote}”
                       </p>
                     ))}
                 </div>
@@ -221,6 +304,12 @@ export function RankingCard({
                 <p className="font-medium text-[#1d4434]">💡 差价分析</p>
                 <p>{item.gap_analysis}</p>
               </div>
+              {(item.cn_reviews?.length ?? 0) > 0 && (
+                <div>
+                  <p className="font-medium text-[#1d4434]">🇨🇳 国内口碑（什么值得买 / B站 / 小红书）</p>
+                  <CnReviewList item={item} />
+                </div>
+              )}
               {item.cn_links && item.cn_links.length > 0 && (
                 <div>
                   <p className="font-medium text-[#1d4434]">🇨🇳 国内口碑 / 购买</p>

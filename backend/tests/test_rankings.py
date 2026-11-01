@@ -41,7 +41,10 @@ def test_every_item_has_image_price_and_source():
         seen_images.add(item.image)
         assert item.image_remote.startswith("https://")
         assert item.price_guide.price_cents > 0
-        assert item.price_guide.overseas_usd.startswith("$")
+        if item.id.startswith("cn_"):  # 国货口碑款：国内好价，无美标价
+            assert item.cn_price and item.cn_price.count >= 2, item.id
+        else:
+            assert item.price_guide.overseas_usd.startswith("$")
         assert item.authorities, item.id
         for auth in item.authorities:
             assert auth.url.startswith("https://"), item.id
@@ -86,7 +89,7 @@ def test_brands_and_sources_endpoints():
     assert len(brands) >= 80
     assert brands[0]["count"] >= brands[-1]["count"]
     sources = {s["source"] for s in _client().get("/api/rankings/sources").json()}
-    assert {"OutdoorGearLab", "Switchback Travel"} <= sources
+    assert {"OutdoorGearLab", "Switchback Travel", "什么值得买", "国货"} <= sources
 
 
 def test_get_ranking_detail():
@@ -114,3 +117,28 @@ def test_compare_rankings():
     many = [it.id for it in RANKING_ITEMS[:5]]
     assert client.post("/api/rankings/compare", json={"ids": many}).status_code == 400
     assert client.post("/api/rankings/compare", json={"ids": [ids[0], "nope"]}).status_code == 404
+
+
+def test_chinese_translations_and_cn_data():
+    """优缺点/奖项译成中文；国内好价、原创测评与国货口碑款都已合并。"""
+    has_zh = [it for it in RANKING_ITEMS if not it.id.startswith("cn_")]
+    zh_pros = sum(
+        1 for it in has_zh if any(p != e for p, e in zip(it.pros_zh, it.pros, strict=True))
+    )
+    assert zh_pros / len(has_zh) > 0.9
+    assert all(len(it.pros_zh) == len(it.pros) for it in RANKING_ITEMS)
+    assert any(a.badge_zh for it in has_zh for a in it.authorities)
+    assert sum(1 for it in has_zh if it.cn_price) > len(has_zh) / 3
+    cn_items = [it for it in RANKING_ITEMS if it.id.startswith("cn_")]
+    assert len(cn_items) >= 30
+    assert {"kailas", "naturehike", "mobigarden", "decathlon"} <= {it.brand for it in cn_items}
+    for it in cn_items:
+        assert it.cn_links and it.authorities[0].source == "什么值得买"
+
+
+def test_filter_by_cn_platform():
+    client = _client()
+    guo = client.get("/api/rankings?source=国货").json()
+    assert guo and all(it["is_cn_brand"] for it in guo)
+    smzdm = client.get("/api/rankings?source=什么值得买").json()
+    assert len(smzdm) > len(guo)

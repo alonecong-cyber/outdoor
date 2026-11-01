@@ -43,9 +43,7 @@ def reprice_zero(session: Session) -> int:
         m = PRICE_TAIL_RE.search(deal.title.strip())
         if not m:
             continue
-        cents = int(
-            (Decimal(m.group(2)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        )
+        cents = int((Decimal(m.group(2)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
         deal.title = m.group(1).strip()
         deal.price_cents = cents
         deal.content_hash = content_hash(
@@ -72,8 +70,7 @@ def main() -> None:
         session.commit()
         total = len(session.exec(select(Deal)).all())
         print(
-            f"待匹配 {pending} 条 → 新挂上 {matched} 条；补提价格 {repriced} 条；"
-            f"Deal 总数 {total}"
+            f"待匹配 {pending} 条 → 新挂上 {matched} 条；补提价格 {repriced} 条；Deal 总数 {total}"
         )
 
 

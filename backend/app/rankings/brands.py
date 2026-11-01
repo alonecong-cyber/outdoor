@@ -216,6 +216,16 @@ BRANDS: list[Brand] = [
     Brand("burgeon", "Burgeon", "Burgeon", "美国"),
     Brand("courier", "Courier", "Courier", "美国"),
     Brand("ombrazsun", "Ombraz", "Ombraz", "美国"),
+    Brand("camel", "CAMEL", "骆驼", "中国", ("Camel",)),
+    Brand("bosideng", "Bosideng", "波司登", "中国", ("BOSIDENG",)),
+    Brand("blackice", "Black Ice", "黑冰", "中国", ("BLACKICE", "Blackice")),
+    Brand("blackdeer", "Blackdeer", "黑鹿", "中国", ("BLACKDEER",)),
+    Brand("pioneercamp", "Pioneer Camp", "拓路者", "中国"),
+    Brand("anta", "ANTA", "安踏", "中国", ("Anta",)),
+    Brand("lining", "Li-Ning", "李宁", "中国", ("LI-NING", "Li Ning")),
+    Brand("xtep", "Xtep", "特步", "中国", ("XTEP",)),
+    Brand("beneunder", "Beneunder", "蕉下", "中国"),
+    Brand("bluefield", "Bluefield", "蓝色领域", "中国"),
     Brand("keenutility", "KEEN Utility", "KEEN Utility", "美国"),
 ]
 
