@@ -55,9 +55,12 @@ class TestSnapshots:
     def test_change_only_writes(self, seed):
         listing = seed.add_listing(seed.jd, external_id="jd-1", price_cents=399800)
         # 价格库存都没变 → 不写新快照
-        assert add_price_snapshot(
-            seed.session, listing_id=listing.id, price_cents=399800, in_stock=True
-        ) is None
+        assert (
+            add_price_snapshot(
+                seed.session, listing_id=listing.id, price_cents=399800, in_stock=True
+            )
+            is None
+        )
         # 价格变了 → 写
         snap = add_price_snapshot(
             seed.session, listing_id=listing.id, price_cents=369800, in_stock=True

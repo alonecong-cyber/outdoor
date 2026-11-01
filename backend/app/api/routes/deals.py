@@ -171,7 +171,9 @@ def deal_detail(deal_id: int, db: Session = Depends(get_db)) -> dict:
     if not current:
         notes.append("目前没有可核验的人民币渠道报价，暂不能判断当前最低到手价。")
     if any(c["currency"] != "CNY" for c in channels):
-        notes.append("海外渠道显示原币商品价；税费、运费与转运费需自行核算，暂不与人民币价合并比价。")
+        notes.append(
+            "海外渠道显示原币商品价；税费、运费与转运费需自行核算，暂不与人民币价合并比价。"
+        )
     return {
         **result.model_dump(),
         "channels": channels,

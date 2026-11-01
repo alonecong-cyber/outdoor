@@ -69,9 +69,27 @@ MALL_SEG_RE = re.compile(r"(.{2,14}?)优惠促销")
 
 # 渠道词典（长词优先）：fallback 扫描整个 og:title
 MALL_WORDS = [
-    "亚马逊海外购", "京东国际", "京东自营", "京东", "天猫超市", "天猫", "淘宝直播",
-    "淘宝", "拼多多", "抖音商城", "亚马逊", "海外购", "唯品会", "苏宁", "考拉",
-    "得物", "美团", "闲鱼", "飞猪", "官网", "微信小程序",
+    "亚马逊海外购",
+    "京东国际",
+    "京东自营",
+    "京东",
+    "天猫超市",
+    "天猫",
+    "淘宝直播",
+    "淘宝",
+    "拼多多",
+    "抖音商城",
+    "亚马逊",
+    "海外购",
+    "唯品会",
+    "苏宁",
+    "考拉",
+    "得物",
+    "美团",
+    "闲鱼",
+    "飞猪",
+    "官网",
+    "微信小程序",
 ]
 
 # 详情页「结构化」区：购买渠道 + 特征（自营 / 商品好评率NN% / 旗舰店…）
@@ -110,12 +128,8 @@ CARD_IMG_RE = re.compile(
     r'<a href="(https://www\.smzdm\.com/p/(\d+)/)"[^>]*>\s*'
     r'<img class="product-img" src="([^"]+)"'
 )
-CARD_TITLE_RE = re.compile(
-    r'class="[^"]*title-normal-box[^"]*"[^>]*>(.*?)</a>', re.S
-)
-CARD_SUBTITLE_RE = re.compile(
-    r'class="[^"]*sub-title-box[^"]*"[^>]*>(.*?)</a>', re.S
-)
+CARD_TITLE_RE = re.compile(r'class="[^"]*title-normal-box[^"]*"[^>]*>(.*?)</a>', re.S)
+CARD_SUBTITLE_RE = re.compile(r'class="[^"]*sub-title-box[^"]*"[^>]*>(.*?)</a>', re.S)
 CARD_CONTENT_RE = re.compile(
     r'class="[^"]*content-normal-box[^"]*"[^>]*>(.*?)(?:</div>|</span>)', re.S
 )
@@ -385,9 +399,7 @@ class SmzdmFeedCollector:
             try:
                 self.rate_limiter.wait(SMZDM_HOST)
                 page_url = CATEGORY_BASE.format(slug=slug)
-                resp = fetch_with_backoff(
-                    lambda u=page_url: self.client.get(u), sleep=self.sleep
-                )
+                resp = fetch_with_backoff(lambda u=page_url: self.client.get(u), sleep=self.sleep)
                 resp.raise_for_status()
             except Exception:  # noqa: BLE001 - 品类页失败跳过该品类
                 continue
@@ -400,9 +412,7 @@ class SmzdmFeedCollector:
                 queued.add(sid)
                 try:
                     self.rate_limiter.wait(SMZDM_HOST)
-                    resp = fetch_with_backoff(
-                        lambda u=url: self.client.get(u), sleep=self.sleep
-                    )
+                    resp = fetch_with_backoff(lambda u=url: self.client.get(u), sleep=self.sleep)
                     resp.raise_for_status()
                     drafts.append(parse_deal_page(resp.text, url))
                 except Exception:  # noqa: BLE001 - 线报流容错：单条失败继续

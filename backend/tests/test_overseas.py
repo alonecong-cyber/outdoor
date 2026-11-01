@@ -38,8 +38,12 @@ class TestAcceptanceSample:
         # 手算：中间步骤全部用 Decimal，最终 2635.42 而非分步取整的 2635.43
         r = calc_overseas(
             OverseasInput(
-                usd_price=450, discount=0.25, coupon_code=0.10, rate=7.1,
-                transfer_fee_cny=220, cashback=0.08,
+                usd_price=450,
+                discount=0.25,
+                coupon_code=0.10,
+                rate=7.1,
+                transfer_fee_cny=220,
+                cashback=0.08,
             )
         )
         assert r.landed_cny == 2635.42

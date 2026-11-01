@@ -34,9 +34,7 @@ def _color_key(color: str) -> str:
     return re.sub(r"\s*/\s*", "/", " ".join(color.lower().split()))
 
 
-def _match_by_style_name(
-    session: Session, raw: RawListing, slug: str, features
-) -> int | None:
+def _match_by_style_name(session: Session, raw: RawListing, slug: str, features) -> int | None:
     """零售商无原厂款号时，按「品牌+款式名 token 集合精确相等」唯一确定款式。
 
     仅当恰好一个同品牌款式名与标题 token 集合完全一致（多一个少一个都拒绝，
@@ -50,9 +48,7 @@ def _match_by_style_name(
     if not listing_tokens:
         return None
     styles = session.exec(select(Style).where(Style.brand_id == brand.id)).all()
-    matched = [
-        s for s in styles if s.name and _name_tokens(s.name, brand_tokens) == listing_tokens
-    ]
+    matched = [s for s in styles if s.name and _name_tokens(s.name, brand_tokens) == listing_tokens]
     if len(matched) != 1:
         return None
     style = matched[0]

@@ -121,8 +121,13 @@ def test_deal_notes(client):
     # 造一条线报
     drafts = [
         DealDraft(
-            source="test", source_id="n1", url="https://x/1",
-            title="始祖鸟 Beta AR 男款", price_cents=26320, currency="CNY", channel="京东",
+            source="test",
+            source_id="n1",
+            url="https://x/1",
+            title="始祖鸟 Beta AR 男款",
+            price_cents=26320,
+            currency="CNY",
+            channel="京东",
         )
     ]
     with Session(app.state.db_engine) as s:

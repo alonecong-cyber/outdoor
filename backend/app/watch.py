@@ -48,9 +48,7 @@ def match_watch_deals(watch: ProductWatch, deals: list[Deal]) -> list[Deal]:
     return out
 
 
-def _recent_alert(
-    session: Session, watch_id: int, deal_id: int, kind: str, now: datetime
-) -> bool:
+def _recent_alert(session: Session, watch_id: int, deal_id: int, kind: str, now: datetime) -> bool:
     since = now - timedelta(hours=DEDUPE_HOURS)
     return (
         session.exec(

@@ -22,10 +22,19 @@ class TestQuote:
             json={
                 "base_price_cents": 399800,
                 "promos": [
-                    {"id": "s1", "kind": "store_coupon", "name": "店铺券",
-                     "threshold_cents": 300000, "amount_cents": 30000},
-                    {"id": "p1", "kind": "platform_coupon", "name": "平台券",
-                     "amount_cents": 10000},
+                    {
+                        "id": "s1",
+                        "kind": "store_coupon",
+                        "name": "店铺券",
+                        "threshold_cents": 300000,
+                        "amount_cents": 30000,
+                    },
+                    {
+                        "id": "p1",
+                        "kind": "platform_coupon",
+                        "name": "平台券",
+                        "amount_cents": 10000,
+                    },
                 ],
             },
         )
@@ -109,8 +118,7 @@ class TestFiller:
     def test_filler_impossible(self, client):
         r = client.post(
             "/api/pricing/filler",
-            json={"threshold_cents": 1000000,
-                  "items": [{"id": "a", "price_cents": 100}]},
+            json={"threshold_cents": 1000000, "items": [{"id": "a", "price_cents": 100}]},
         )
         assert r.status_code == 200
         assert r.json()["ok"] is False
@@ -156,8 +164,11 @@ class TestSubscriptions:
         seed.add_listing(seed.jd, external_id="subscription-ready", price_cents=399800)
         r = client.post(
             "/api/alerts/subscriptions",
-            json={"variant_id": seed.variant.id, "target_price_cents": 400000,
-                  "kinds": ["price_below"]},
+            json={
+                "variant_id": seed.variant.id,
+                "target_price_cents": 400000,
+                "kinds": ["price_below"],
+            },
         )
         assert r.status_code == 200
         sub = r.json()

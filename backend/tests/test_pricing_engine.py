@@ -54,13 +54,9 @@ class TestApplyPromos:
 
     def test_member_price_only_when_lower(self):
         # 手算：会员价 3500 < 4000 → 3500；另一单会员价 4500 > 4000 → 保持 4000
-        r_low = apply_promos(
-            400000, [promo(PromoKind.MEMBER_PRICE, amount_cents=350000)]
-        )
+        r_low = apply_promos(400000, [promo(PromoKind.MEMBER_PRICE, amount_cents=350000)])
         assert r_low.paid_now_cents == 350000
-        r_high = apply_promos(
-            400000, [promo(PromoKind.MEMBER_PRICE, amount_cents=450000)]
-        )
+        r_high = apply_promos(400000, [promo(PromoKind.MEMBER_PRICE, amount_cents=450000)])
         assert r_high.paid_now_cents == 400000
 
     def test_rebate_separate_from_paid(self):
@@ -72,9 +68,7 @@ class TestApplyPromos:
 
     def test_cap_truncates_discount(self):
         # 手算：立减 50% 但封顶 100：300×50%=150 → 100 → 200 元
-        r = apply_promos(
-            30000, [promo(PromoKind.PAYMENT_DISCOUNT, rate=0.5, cap_cents=10000)]
-        )
+        r = apply_promos(30000, [promo(PromoKind.PAYMENT_DISCOUNT, rate=0.5, cap_cents=10000)])
         assert r.paid_now_cents == 20000
 
     def test_discount_never_negative(self):

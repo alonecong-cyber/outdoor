@@ -42,9 +42,7 @@ def send_wecom(text: str, *, webhook: str = "") -> tuple[bool, str | None]:
     if not webhook:
         return False, "WECOM_WEBHOOK 未配置"
     try:
-        resp = httpx.post(
-            webhook, json={"msgtype": "text", "text": {"content": text}}, timeout=15
-        )
+        resp = httpx.post(webhook, json={"msgtype": "text", "text": {"content": text}}, timeout=15)
         resp.raise_for_status()
         return True, None
     except httpx.HTTPError as e:

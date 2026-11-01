@@ -107,9 +107,9 @@ def list_variants(
                 "min_price_cents": current_min,
                 "sort_price_cents": cny_min,
                 "reported_min_price_cents": reported_min,
-                "currency": basis_currency if current or verified_any else (
-                    "CNY" if current else report_currency
-                ),
+                "currency": basis_currency
+                if current or verified_any
+                else ("CNY" if current else report_currency),
                 "reported_currency": report_currency,
                 "price_basis": (
                     "verified" if (current or verified_any) else "reported" if deals else "unknown"

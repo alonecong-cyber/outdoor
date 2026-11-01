@@ -36,9 +36,7 @@ def _variant_image(variant: dict, product: dict) -> str:
     return str(src)
 
 
-def parse_products_json(
-    payload: dict, *, channel_slug: str, base_url: str
-) -> list[RawListing]:
+def parse_products_json(payload: dict, *, channel_slug: str, base_url: str) -> list[RawListing]:
     """Shopify products.json 载荷 → 每个在售/有价变体一条 RawListing。"""
     out: list[RawListing] = []
     handle = ""

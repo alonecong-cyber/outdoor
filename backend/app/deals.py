@@ -50,9 +50,7 @@ def grow_variant(session: Session, title: str) -> int | None:
         style_name = core or f"{name} {style_number}"
     brand = get_or_create_brand(session, slug, name, name_cn=name_cn)
     style = get_or_create_style(session, brand.id, style_number, name=style_name)
-    variant = get_or_create_variant(
-        session, style.id, feats.color or "-", feats.size or "-"
-    )
+    variant = get_or_create_variant(session, style.id, feats.color or "-", feats.size or "-")
     return variant.id
 
 
@@ -144,10 +142,15 @@ def reports_due_for_recheck(session: Session, *, limit: int = 2) -> list[Deal]:
     # 最近两周的线报有限轮询；更旧内容统一标注历史参考，不无限抓取。
     recent = utc_now() - timedelta(days=14)
     rows = session.exec(
-        select(Deal).where(
-            Deal.source == "smzdm", Deal.created_at >= recent, Deal.url != "",
+        select(Deal)
+        .where(
+            Deal.source == "smzdm",
+            Deal.created_at >= recent,
+            Deal.url != "",
             or_(Deal.last_checked_at.is_(None), Deal.last_checked_at < cutoff),
-        ).order_by(Deal.last_checked_at, Deal.id).limit(limit)
+        )
+        .order_by(Deal.last_checked_at, Deal.id)
+        .limit(limit)
     ).all()
     return list(rows)
 

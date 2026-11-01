@@ -291,9 +291,7 @@ def ingest_smzdm_deals(
 
                     for deal in sparse:
                         try:
-                            drafts.append(
-                                parse_deal_page(fetch_page(deal.url), deal.url)
-                            )
+                            drafts.append(parse_deal_page(fetch_page(deal.url), deal.url))
                         except Exception as exc:  # noqa: BLE001 - 单条失败继续
                             logger.warning("线报补全失败 %s: %s", deal.source_id, exc)
             except Exception as exc:  # noqa: BLE001 - 补全失败不拖垮主流程

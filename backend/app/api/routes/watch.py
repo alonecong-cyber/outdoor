@@ -134,8 +134,7 @@ def watch_alerts(watch_id: int, db: Session = Depends(get_db)) -> list[dict]:
             .where(WatchAlert.watch_id == watch_id)
             .order_by(WatchAlert.created_at.desc())  # type: ignore[union-attr]
             .limit(50)
-        )
-        .all()  # type: ignore[call-overload]
+        ).all()  # type: ignore[call-overload]
     )
     deals = {d.id: d for d in db.exec(select(Deal)).all()}
     out = []

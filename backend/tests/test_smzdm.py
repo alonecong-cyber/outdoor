@@ -105,8 +105,7 @@ def test_parse_deal_page_real_shape(fixture_path):
 def test_parse_deal_page_h1_fallback():
     """没有 og:title 时退到 h1；渠道词扫全文；价格未知。"""
     html = (
-        "<html><body><h1 class='title'>始祖鸟 Beta LT 夹克 27910</h1>"
-        "<p>京东自营</p></body></html>"
+        "<html><body><h1 class='title'>始祖鸟 Beta LT 夹克 27910</h1><p>京东自营</p></body></html>"
     )
     d = parse_deal_page(html, "https://www.smzdm.com/p/184615999/")
     assert d.title == "始祖鸟 Beta LT 夹克 27910"
@@ -315,9 +314,7 @@ def test_collect_categories_limit_and_dead_category(fixture_path):
         }
     )
     try:
-        drafts = c.collect_categories(
-            ["dead-slug", "chongfengyi"], exclude_ids=set(), limit=1
-        )
+        drafts = c.collect_categories(["dead-slug", "chongfengyi"], exclude_ids=set(), limit=1)
         assert [d.source_id for d in drafts] == ["184600101"]
     finally:
         c.close()

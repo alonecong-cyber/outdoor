@@ -163,6 +163,7 @@ def fetch_robots_txt(base_url: str, client: httpx.Client) -> str:
 
 # ---------- JSON-LD ----------
 
+
 def _jsonld_product(doc) -> dict | None:
     """在 JSON-LD 文档（含 @graph、单对象、列表）里找 Product。"""
     candidates = doc if isinstance(doc, list) else [doc]
@@ -425,9 +426,7 @@ class WebProductCollector:
         self.targets = targets
         self.rate_limiter = HostRateLimiter()
 
-    def collect(
-        self, client: httpx.Client | None = None
-    ) -> Iterable[RawListing]:
+    def collect(self, client: httpx.Client | None = None) -> Iterable[RawListing]:
         client = client or make_http_client(timeout=30, follow_redirects=True)
         for channel_slug, url in self.targets:
             try:

@@ -256,7 +256,10 @@ class TestProductPage:
 
         client = httpx.Client(transport=httpx.MockTransport(handler))
         c = WebProductCollector(
-            targets=[("official-us", "https://brand.com/good"), ("official-us", "https://brand.com/bad")]
+            targets=[
+                ("official-us", "https://brand.com/good"),
+                ("official-us", "https://brand.com/bad"),
+            ]
         )
         c.rate_limiter = HostRateLimiter(min_interval=0, clock=lambda: 0.0, sleep=lambda s: None)
         raws = list(c.collect(client=client))

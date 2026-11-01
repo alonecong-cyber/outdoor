@@ -21,9 +21,7 @@ def test_threshold_coupon_pulls_same_channel():
         ItemToBuy("B", "Beta LT", [ChannelOption("jd", 80000), ChannelOption("tb", 95000)]),
     ]
     promos = {
-        "jd": [
-            promo(PromoKind.PLATFORM_COUPON, "p1", amount_cents=30000, threshold_cents=150000)
-        ]
+        "jd": [promo(PromoKind.PLATFORM_COUPON, "p1", amount_cents=30000, threshold_cents=150000)]
     }
     sol = solve_multi_item(items, promos)
     assert sol.total_paid_cents == 150000
@@ -57,10 +55,24 @@ def test_exclusive_group_across_channels():
         ItemToBuy("B", "Beta LT", [ChannelOption("jd", 80000), ChannelOption("tb", 95000)]),
     ]
     promos = {
-        "jd": [promo(PromoKind.PLATFORM_COUPON, "pj", amount_cents=30000,
-                     threshold_cents=150000, exclusive_group="big")],
-        "tb": [promo(PromoKind.PLATFORM_COUPON, "pt", amount_cents=10000,
-                     threshold_cents=100000, exclusive_group="big")],
+        "jd": [
+            promo(
+                PromoKind.PLATFORM_COUPON,
+                "pj",
+                amount_cents=30000,
+                threshold_cents=150000,
+                exclusive_group="big",
+            )
+        ],
+        "tb": [
+            promo(
+                PromoKind.PLATFORM_COUPON,
+                "pt",
+                amount_cents=10000,
+                threshold_cents=100000,
+                exclusive_group="big",
+            )
+        ],
     }
     sol = solve_multi_item(items, promos)
     assert sol.total_paid_cents == 150000
@@ -71,9 +83,15 @@ def test_exclusive_group_across_channels():
 def test_single_item_multiple_channels():
     # 手算：一件商品三渠道 500/450/480 → 直接选最便宜 450
     items = [
-        ItemToBuy("A", "Torrentshell", [
-            ChannelOption("jd", 50000), ChannelOption("tb", 45000), ChannelOption("us", 48000),
-        ])
+        ItemToBuy(
+            "A",
+            "Torrentshell",
+            [
+                ChannelOption("jd", 50000),
+                ChannelOption("tb", 45000),
+                ChannelOption("us", 48000),
+            ],
+        )
     ]
     sol = solve_multi_item(items, {})
     assert sol.total_paid_cents == 45000

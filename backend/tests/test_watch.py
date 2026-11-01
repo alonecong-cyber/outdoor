@@ -68,12 +68,20 @@ def test_match_filters(session: Session):
     d1 = _deal(session, n=1, title="始祖鸟 Beta AR 男款 冲锋衣", price_cents=26320, channel="京东")
     _deal(session, n=2, title="始祖鸟 Beta AR 冲锋衣 保护套", price_cents=5900)
     d3 = _deal(
-        session, n=3, title="今日必买：冲锋衣好价", summary="始祖鸟 Beta AR 三合一",
-        price_cents=29900, channel="天猫",
+        session,
+        n=3,
+        title="今日必买：冲锋衣好价",
+        summary="始祖鸟 Beta AR 三合一",
+        price_cents=29900,
+        channel="天猫",
     )
     _deal(
-        session, n=4, title="Arc'teryx Beta AR Jacket M",
-        price_cents=38475, channel="evo", currency="USD",
+        session,
+        n=4,
+        title="Arc'teryx Beta AR Jacket M",
+        price_cents=38475,
+        channel="evo",
+        currency="USD",
     )
     w = _watch(session, keywords=["始祖鸟 Beta AR"], exclude=["保护套"])
     matched = match_watch_deals(w, session.exec(select(Deal)).all())
@@ -123,8 +131,12 @@ def test_expired_and_usd_not_compared(session: Session):
     # 过期线报命中关键词但不参与比价；USD 只计数不比 CNY
     d_exp = _deal(session, n=30, title="始祖鸟 Beta AR 过期", price_cents=1000, expired=True)
     d_usd = _deal(
-        session, n=31, title="始祖鸟 Beta AR evo 折扣",
-        price_cents=38475, channel="evo", currency="USD",
+        session,
+        n=31,
+        title="始祖鸟 Beta AR evo 折扣",
+        price_cents=38475,
+        channel="evo",
+        currency="USD",
     )
     d_cny = _deal(session, n=32, title="始祖鸟 Beta AR 京东", price_cents=26320)
     w = _watch(session, keywords=["Beta AR"])

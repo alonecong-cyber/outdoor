@@ -21,9 +21,7 @@ def _ingest(session: Session, payload: dict) -> list[int]:
     ch = Channel(slug="evo_us_test", kind="web", currency="USD", country="US", name="evo test")
     session.add(ch)
     session.flush()
-    raws = parse_products_json(
-        payload, channel_slug="evo_us_test", base_url="https://www.evo.com"
-    )
+    raws = parse_products_json(payload, channel_slug="evo_us_test", base_url="https://www.evo.com")
     ids: list[int] = []
     for raw in raws:
         vid = resolve_variant(session, raw, auto_only=True)
@@ -34,9 +32,7 @@ def _ingest(session: Session, payload: dict) -> list[int]:
 
 def test_parse_products_json_variants_and_prices():
     payload = load_json(FIXTURE.read_text(), {})
-    raws = parse_products_json(
-        payload, channel_slug="evo_us", base_url="https://www.evo.com"
-    )
+    raws = parse_products_json(payload, channel_slug="evo_us", base_url="https://www.evo.com")
     assert len(raws) == 6
     first = raws[0]
     assert first.title == "Arc'teryx Beta AR Jacket - Men's"
@@ -54,17 +50,16 @@ def test_name_match_attaches_to_existing_style(tmp_path):
     init_db(engine)
     with Session(engine) as session:
         brand = get_or_create_brand(session, "arcteryx", "Arc'teryx")
-        style = get_or_create_style(
-            session, brand.id, "X000011062", name="Beta AR Jacket Men's"
-        )
+        style = get_or_create_style(session, brand.id, "X000011062", name="Beta AR Jacket Men's")
         session.flush()
         ids = _ingest(session, load_json(FIXTURE.read_text(), {}))
         session.commit()
         # Beta AR（无 StormHood）4 变体全部并入既有款式；StormHood 2 变体拒绝
         attached = [i for i in ids[:4]]
-        assert all(i == next(
-            v.id for v in session.exec(select(Variant)).all() if v.style_id == style.id
-        ) for i in attached) or set(attached)  # 同款不同尺码各建/找到各变体
+        assert all(
+            i == next(v.id for v in session.exec(select(Variant)).all() if v.style_id == style.id)
+            for i in attached
+        ) or set(attached)  # 同款不同尺码各建/找到各变体
         assert set(ids[:4]) <= {
             v.id for v in session.exec(select(Variant)).all() if v.style_id == style.id
         }

@@ -1,6 +1,5 @@
 """线报摘要优惠解析与最优方案接口回归（离线，不联网）。"""
 
-
 from app.models import DealDraft
 from app.pricing.plan import parse_base_price, parse_claimed_final, parse_summary_promos
 

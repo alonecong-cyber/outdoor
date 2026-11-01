@@ -27,12 +27,14 @@ def _listing_with_history(seed, rows):
         currency=seed.jd.currency,
     )
     listing, _ = save_raw_listing(
-            seed.session, raw=raw, channel_id=seed.jd.id, variant_id=seed.variant.id
-        )
+        seed.session, raw=raw, channel_id=seed.jd.id, variant_id=seed.variant.id
+    )
     base = utc_now()
     for days_ago, price in rows:
         add_price_snapshot(
-            seed.session, listing_id=listing.id, price_cents=price,
+            seed.session,
+            listing_id=listing.id,
+            price_cents=price,
             ts=base - timedelta(days=days_ago),
         )
     return listing, base
@@ -53,7 +55,9 @@ class TestIsNewLow:
         listing = seed.add_listing(seed.jd, external_id="jd-1", price_cents=500000)
         base = utc_now()
         add_price_snapshot(
-            seed.session, listing_id=listing.id, price_cents=500000,
+            seed.session,
+            listing_id=listing.id,
+            price_cents=500000,
             ts=base - timedelta(days=5),
         )
         assert not is_new_low(seed.session, listing.id, 100000, now=base)
@@ -63,9 +67,7 @@ class TestIsNewLow:
         # ts<now 窗口，min 含自己 → 新低永远 False。传 before=当前快照 ts 才对。
         listing, base = _listing_with_history(seed, [(20, 500000), (10, 480000)])
         now = base + timedelta(seconds=1)
-        snap = add_price_snapshot(
-            seed.session, listing_id=listing.id, price_cents=470000, ts=now
-        )
+        snap = add_price_snapshot(seed.session, listing_id=listing.id, price_cents=470000, ts=now)
         assert snap is not None
         assert not is_new_low(seed.session, listing.id, 470000, now=now + timedelta(seconds=1))
         assert is_new_low(
@@ -113,16 +115,18 @@ class TestEvaluateListing:
         now = utc_now()
         evaluate_listing(seed.session, listing, 450000, now=now)
         assert recent_alert(seed.session, sub.id, "price_below", now=now)
-        assert not recent_alert(
-            seed.session, sub.id, "price_below", now=now + timedelta(hours=25)
-        )
+        assert not recent_alert(seed.session, sub.id, "price_below", now=now + timedelta(hours=25))
 
 
 class TestNotify:
     def test_format_alert_readable(self):
         text = format_alert(
-            {"title": "Beta LT", "price_cents": 369800, "kind": "price_below",
-             "target_price_cents": 400000}
+            {
+                "title": "Beta LT",
+                "price_cents": 369800,
+                "kind": "price_below",
+                "target_price_cents": 400000,
+            }
         )
         assert "Beta LT" in text and "3698" in text
 
