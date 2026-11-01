@@ -48,7 +48,7 @@ export function PlanPanel({ plan }: { plan: VariantPlan }) {
           </div>
           <div className="text-right">
             <span className="quote-main-price">{money(best.effective_cents, "CNY")}</span>
-            <span className="mt-1 block text-[9px] text-moss">估算到手价</span>
+            <span className="mt-1 block text-[11px] text-moss">估算到手价</span>
           </div>
         </div>
         <div className="quote-breakdown">
@@ -70,7 +70,7 @@ export function PlanPanel({ plan }: { plan: VariantPlan }) {
             </ol>
           </details>
         )}
-        {best.notes.length > 0 && <ul className="mt-3 space-y-1 text-[10px] text-dim">{best.notes.map((note) => <li key={note}>· {note}</li>)}</ul>}
+        {best.notes.length > 0 && <ul className="mt-3 space-y-1 text-[11px] text-dim">{best.notes.map((note) => <li key={note}>· {note}</li>)}</ul>}
         {best.url && <a href={best.url} target="_blank" rel="noopener noreferrer" className="text-link mt-4">查看来源线报核对优惠条件</a>}
       </article>
     </div>

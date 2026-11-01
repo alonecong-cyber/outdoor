@@ -515,6 +515,7 @@ export const api = {
   rankingCategories: () => request<CategoryMeta[]>("/api/rankings/categories"),
   rankingBrands: (category?: string) =>
     request<BrandStat[]>(`/api/rankings/brands${category ? `?category=${encodeURIComponent(category)}` : ""}`),
+  rankingSources: () => request<{ source: string; count: number }[]>("/api/rankings/sources"),
   rankingDetail: (id: string) => request<GearRankingItem>(`/api/rankings/${id}`),
   rankingCompare: (ids: string[]) =>
     request<CompareMatrixResponse>("/api/rankings/compare", {

@@ -25,7 +25,7 @@ export function SiteHeader({ kicker }: { kicker?: string }) {
       <nav className="desktop-nav" aria-label="主导航">
         {NAV.map((item) => <Link key={item.href} href={item.href} className={active(item.href) ? "is-active" : ""} aria-current={active(item.href) ? "page" : undefined}>{item.label}</Link>)}
       </nav>
-      <div className="header-end"><HeaderSearch /><span className="header-edition">FIELD NOTES <span>/ {kicker || "OUTDOOR"}</span></span>
+      <div className="header-end"><HeaderSearch /><Link href="/variants" className="mobile-search" aria-label="搜索装备"><Icon name="search" /></Link><span className="header-edition">FIELD NOTES <span>/ {kicker || "OUTDOOR"}</span></span>
         <details className="mobile-menu"><summary aria-label="打开导航菜单"><Icon name="menu" /></summary><nav aria-label="移动主导航">{NAV.map((item) => <Link key={item.href} href={item.href} aria-current={active(item.href) ? "page" : undefined}>{item.label}<Icon name="chevron" /></Link>)}</nav></details>
       </div>
     </header>

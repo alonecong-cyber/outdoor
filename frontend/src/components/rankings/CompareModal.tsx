@@ -1,21 +1,17 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { CompareMatrixResponse, GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { CnReviewList, GearImage, cnPriceLabel, rankLabel } from "@/components/rankings/RankingCard";
+import { useOverlay } from "@/components/rankings/RankingDetail";
 
-type Row = { label: string; render: (it: GearRankingItem) => ReactNode; best?: (it: GearRankingItem) => number | null; higherIsBetter?: boolean };
+type Row = { label: string; render: (it: GearRankingItem) => ReactNode; best?: (it: GearRankingItem) => number | null; higherIsBetter?: boolean; text?: (it: GearRankingItem) => string };
 
 /** 横向对比表：行=维度，列=产品；数值维度自动高亮最优。 */
-export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixResponse | null; onClose: () => void }) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+export function CompareModal({ matrix, onClose, onRemove }: { matrix: CompareMatrixResponse | null; onClose: () => void; onRemove?: (id: string) => void }) {
+  const [diffOnly, setDiffOnly] = useState(false);
+  useOverlay(true, onClose);
 
   if (!matrix || matrix.items.length === 0) return null;
   const { items, gap_summary, category_name } = matrix;
@@ -25,8 +21,8 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
   const specKeys = Array.from(new Set(items.flatMap((it) => Object.keys(it.spec_table ?? {}))));
 
   const rows: Row[] = [
-    { label: "品牌 / 产地", render: (it) => `${it.brand_name}${it.brand_country ? ` · ${it.brand_country}` : ""}` },
-    { label: "款式", render: (it) => `${it.gender_name ?? ""} · ${it.price_tier_name}` },
+    { label: "品牌 / 产地", text: (it) => `${it.brand_name}${it.brand_country}`, render: (it) => `${it.brand_name}${it.brand_country ? ` · ${it.brand_country}` : ""}` },
+    { label: "款式", text: (it) => `${it.gender_name}${it.price_tier_name}`, render: (it) => `${it.gender_name ?? ""} · ${it.price_tier_name}` },
     {
       label: "美标价",
       render: (it) =>
@@ -98,9 +94,10 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
       },
       best: (it) => it.sub_scores?.[k] ?? null,
       higherIsBetter: true,
+      text: (it) => String(it.sub_scores?.[k] ?? "—"),
     })),
-    { label: "重量", render: (it) => it.specs.weight || "—" },
-    ...specKeys.map<Row>((k) => ({ label: k, render: (it) => it.spec_table?.[k] ?? "—" })),
+    { label: "重量", text: (it) => it.specs.weight || "—", render: (it) => it.specs.weight || "—" },
+    ...specKeys.map<Row>((k) => ({ label: k, text: (it) => it.spec_table?.[k] ?? "—", render: (it) => it.spec_table?.[k] ?? "—" })),
     {
       label: "优点",
       render: (it) => (
@@ -147,55 +144,61 @@ export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixRespons
     return new Set(vals.filter(([, v]) => v === target).map(([id]) => id));
   };
 
+  const visibleRows = diffOnly ? rows.filter((r) => !r.text || new Set(items.map((it) => r.text!(it))).size > 1) : rows;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="compare-modal-title">
-      <div className="bg-[#fffefa] w-full max-w-7xl max-h-[92vh] rounded-xl shadow-2xl flex flex-col border border-[#dce0d4] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#eceee5] bg-[#f8f7f2]">
-          <div>
-            <h2 id="compare-modal-title" className="text-lg font-bold text-[#213b2e] flex items-center gap-2">
-              <span className="p-1.5 rounded-full bg-[#1d4434] text-white">
-                <Icon name="compare" className="w-4 h-4" />
-              </span>
-              横向对比 · {category_name}
-            </h2>
-            <p className="text-xs text-[#687366] font-mono mt-0.5">已选 {items.length} 款 · 绿色高亮为该维度最优</p>
+    <div className="fixed inset-0 z-[60] flex items-stretch justify-center bg-[#10201899] backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="compare-modal-title">
+      <div className="flex w-full max-w-7xl flex-col overflow-hidden bg-panel shadow-2xl sm:max-h-[92vh] sm:rounded-xl sm:border sm:border-line">
+        <div className="flex items-center gap-3 border-b border-line bg-[#f8f7f2] px-4 py-3 sm:px-6">
+          <div className="min-w-0 flex-1">
+            <h2 id="compare-modal-title" className="truncate text-base font-semibold text-ink sm:text-lg">横向对比 · {category_name}</h2>
+            <p className="text-xs text-dim">{items.length} 款 · 绿色为该维度最优</p>
           </div>
-          <button type="button" onClick={onClose} className="p-2 text-[#687366] hover:text-[#213b2e] hover:bg-[#eaece2] rounded-full" aria-label="关闭对比弹窗">
-            <Icon name="close" className="w-5 h-5" />
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[13px] text-ink">
+            <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} className="h-4 w-4 accent-[#1d4434]" />
+            只看差异
+          </label>
+          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-dim hover:bg-panel-2 hover:text-ink" aria-label="关闭对比">
+            <Icon name="close" />
           </button>
         </div>
 
         {gap_summary && (
-          <div className="px-6 py-3 bg-[#f0f4ea] border-b border-[#d8e0ce] text-xs text-[#2c4731] leading-relaxed">
-            <strong className="font-semibold">💡 对比结论：</strong>
+          <div className="border-b border-[#d8e0ce] bg-[#f0f4ea] px-4 py-2.5 text-[13px] leading-relaxed text-[#2c4731] sm:px-6">
+            <strong className="font-semibold">对比结论：</strong>
             {gap_summary}
           </div>
         )}
 
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-xs text-[#36493b] border-collapse" style={{ minWidth: 200 + items.length * 220 }}>
-            <thead className="sticky top-0 z-10 bg-[#fffefa]">
+        <div className="flex-1 overflow-auto overscroll-contain">
+          <table className="w-full border-separate border-spacing-0 text-[13px] text-[#36493b]" style={{ minWidth: 112 + items.length * 190 }}>
+            <thead className="sticky top-0 z-20 bg-panel">
               <tr>
-                <th className="w-40 p-3 text-left text-[#687366] font-mono border-b border-[#eceee5]">维度</th>
+                <th className="sticky left-0 z-10 w-28 border-b border-r border-line bg-panel p-2 text-left text-xs font-normal text-dim sm:w-40 sm:p-3">维度</th>
                 {items.map((it) => (
-                  <th key={it.id} className="p-3 text-left align-top border-b border-[#eceee5]">
-                    <div className="relative w-full pt-[60%] bg-white rounded overflow-hidden mb-2">
-                      <GearImage item={it} className="absolute inset-0 w-full h-full object-contain" />
+                  <th key={it.id} className="border-b border-line p-2 text-left align-top font-normal sm:p-3">
+                    <div className="relative mb-2 aspect-[16/10] w-full overflow-hidden rounded bg-white">
+                      <GearImage item={it} className="absolute inset-0 h-full w-full object-contain p-1" />
+                      {onRemove && (
+                        <button type="button" onClick={() => onRemove(it.id)} className="absolute right-1 top-1 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-dim shadow hover:text-accent" aria-label={`从对比中移除 ${it.name_cn}`}>
+                          <Icon name="close" className="!h-4 !w-4" />
+                        </button>
+                      )}
                     </div>
-                    <div className="font-semibold text-sm text-[#213b2e] leading-snug">{it.name_cn}</div>
-                    <div className="text-[11px] text-[#687366] font-mono font-normal">{it.name}</div>
+                    <div className="line-clamp-2 text-[13px] font-semibold leading-snug text-ink">{it.name_cn}</div>
+                    <div className="truncate font-mono text-[11px] text-dim">{it.name}</div>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {visibleRows.map((row) => {
                 const best = bestIds(row);
                 return (
-                  <tr key={row.label} className="border-b border-[#f0f1ea] align-top">
-                    <th className="p-3 text-left font-medium text-[#687366] bg-[#fafaf6]">{row.label}</th>
+                  <tr key={row.label} className="align-top">
+                    <th className="sticky left-0 z-10 border-b border-r border-line bg-[#fafaf6] p-2 text-left text-xs font-medium text-dim sm:p-3">{row.label}</th>
                     {items.map((it) => (
-                      <td key={it.id} className={`p-3 ${best.has(it.id) ? "bg-[#e3eedb] font-semibold" : ""}`}>
+                      <td key={it.id} className={`border-b border-[#f0f1ea] p-2 sm:p-3 ${best.has(it.id) ? "bg-[#e3eedb] font-semibold" : ""}`}>
                         {row.render(it)}
                       </td>
                     ))}

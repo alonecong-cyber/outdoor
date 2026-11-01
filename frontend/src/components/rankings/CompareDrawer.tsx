@@ -4,88 +4,56 @@ import type { GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { GearImage } from "@/components/rankings/RankingCard";
 
+/** 底部对比托盘：移动端停在底部导航之上，最多 4 款。 */
 export function CompareDrawer({
   selectedItems,
   onRemove,
   onClear,
   onCompare,
+  loading = false,
 }: {
   selectedItems: GearRankingItem[];
   onRemove: (id: string) => void;
   onClear: () => void;
   onCompare: () => void;
+  loading?: boolean;
 }) {
   if (selectedItems.length === 0) return null;
-
+  const ready = selectedItems.length >= 2;
   return (
-    <aside
-      className="fixed bottom-0 left-0 right-0 z-40 bg-[#fffefa] border-t-2 border-[#1d4434] shadow-2xl p-3 sm:px-8 transition-transform animate-in slide-in-from-bottom"
-      aria-label="装备对比抽屉"
-    >
-      <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-        {/* 左侧说明与缩略图 */}
-        <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto py-1">
-          <div className="flex-shrink-0">
-            <span className="text-xs font-bold text-[#1d4434] block">
-              已选对比装备
-            </span>
-            <span className="text-[10px] text-[#687366] font-mono">
-              ({selectedItems.length}/4 款，建议选同类)
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {selectedItems.map((item) => (
-              <div
-                key={item.id}
-                className="relative flex items-center gap-1.5 p-1 pr-2 rounded bg-[#f5f4ee] border border-[#dce0d4] flex-shrink-0"
+    <aside className="compare-tray" aria-label="对比托盘">
+      <div className="mx-auto flex max-w-6xl items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5">
+          {selectedItems.map((item) => (
+            <div key={item.id} className="relative flex shrink-0 items-center gap-2 rounded-md border border-line bg-bg py-1 pl-1 pr-7">
+              <GearImage item={item} className="h-9 w-9 rounded bg-white object-contain" />
+              <span className="hidden max-w-[120px] truncate text-xs font-medium text-ink sm:block">{item.name_cn}</span>
+              <button
+                type="button"
+                onClick={() => onRemove(item.id)}
+                className="absolute right-0.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded text-dim hover:text-accent"
+                aria-label={`移除 ${item.name_cn}`}
               >
-                <GearImage item={item} className="w-8 h-8 object-contain rounded bg-white" />
-                <div className="text-left max-w-[100px] truncate">
-                  <p className="text-[11px] font-semibold text-[#213b2e] truncate">
-                    {item.name_cn}
-                  </p>
-                  <p className="text-[9px] text-[#be482b] font-mono font-bold truncate">
-                    {item.price_guide.overseas_usd}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onRemove(item.id)}
-                  className="text-[#889280] hover:text-[#be482b] p-0.5"
-                  aria-label={`移除 ${item.name_cn}`}
-                >
-                  <Icon name="close" className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
+                <Icon name="close" className="!h-3.5 !w-3.5" />
+              </button>
+            </div>
+          ))}
+          {Array.from({ length: Math.max(0, 2 - selectedItems.length) }).map((_, i) => (
+            <span key={i} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-dashed border-[#c9d0bf] text-[11px] text-dim">+1</span>
+          ))}
         </div>
-
-        {/* 右侧动作按钮 */}
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-shrink-0">
-          <button
-            type="button"
-            onClick={onClear}
-            className="btn-ghost text-xs py-2 px-3 rounded text-[#687366] hover:text-[#213b2e]"
-          >
-            清空已选
-          </button>
-
-          <button
-            type="button"
-            onClick={onCompare}
-            disabled={selectedItems.length < 2}
-            className="btn-primary text-xs py-2 px-4 shadow-sm"
-          >
-            <Icon name="compare" className="w-4 h-4" />
-            <span>
-              {selectedItems.length < 2
-                ? "请至少选择 2 款装备"
-                : `开始横向同屏 PK (${selectedItems.length} 款)`}
-            </span>
-          </button>
-        </div>
+        <button type="button" onClick={onClear} className="hidden min-h-10 shrink-0 rounded-md px-3 text-[13px] text-dim hover:text-ink sm:block">
+          清空
+        </button>
+        <button
+          type="button"
+          onClick={onCompare}
+          disabled={!ready || loading}
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md bg-forest px-4 text-[13px] font-semibold text-white hover:bg-forest-2"
+        >
+          <Icon name="compare" className="!h-4 !w-4" />
+          {loading ? "加载中…" : ready ? `开始对比 ${selectedItems.length}/4` : "再选 1 款"}
+        </button>
       </div>
     </aside>
   );

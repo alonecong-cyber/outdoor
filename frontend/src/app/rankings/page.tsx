@@ -1,437 +1,405 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
-import type { GearRankingItem } from "@/lib/api";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api, type CompareMatrixResponse } from "@/lib/api";
+import { api, type CompareMatrixResponse, type GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RankingCard } from "@/components/rankings/RankingCard";
+import { RankingDetail } from "@/components/rankings/RankingDetail";
 import { CompareDrawer } from "@/components/rankings/CompareDrawer";
 import { CompareModal } from "@/components/rankings/CompareModal";
 
-export default function RankingsPage() {
-  const [category, setCategory] = useState<string>("hardshell");
-  const [tier, setTier] = useState<string>("all");
-  const [source, setSource] = useState<string>("all");
-  const [query, setQuery] = useState<string>("");
-  const [sort, setSort] = useState<string>("score_desc");
-  const [gender, setGender] = useState<string>("all");
-  const [brand, setBrand] = useState<string>("all");
-  const [visible, setVisible] = useState<number>(24);
-  const deferredQuery = useDeferredValue(query);
-  const [selected, setSelected] = useState<GearRankingItem[]>([]);
-  const selectedIds = selected.map((it) => it.id);
-  const [compareMatrix, setCompareMatrix] = useState<CompareMatrixResponse | null>(null);
-  const [isComparing, setIsComparing] = useState<boolean>(false);
+const PAGE = 24;
+const MAX_COMPARE = 4;
 
-  // 获取品类元数据与数量
-  const categoriesQuery = useQuery({
-    queryKey: ["rankingCategories"],
-    queryFn: () => api.rankingCategories(),
+const TIERS = [
+  { id: "all", name: "全部价位" },
+  { id: "budget", name: "入门性价比" },
+  { id: "mid", name: "进阶主力" },
+  { id: "flagship", name: "顶级旗舰" },
+];
+const GENDERS = [
+  { id: "all", name: "不限" },
+  { id: "men", name: "男款" },
+  { id: "women", name: "女款" },
+];
+const SORTS = [
+  { id: "score_desc", name: "综合得分最高" },
+  { id: "value_desc", name: "性价比最高" },
+  { id: "awards_desc", name: "上榜次数最多" },
+  { id: "price_asc", name: "价格从低到高" },
+  { id: "price_desc", name: "价格从高到低" },
+];
+const SOURCE_NAMES: Record<string, string> = {
+  OutdoorGearLab: "OutdoorGearLab 实测",
+  "Switchback Travel": "Switchback 编辑榜",
+  什么值得买: "什么值得买 好价/原创",
+  B站: "B站 测评视频",
+  小红书: "小红书 笔记",
+  国货: "只看国货品牌",
+};
+
+type Filters = { category: string; tier: string; source: string; gender: string; brand: string; q: string; sort: string };
+const DEFAULTS: Filters = { category: "hardshell", tier: "all", source: "all", gender: "all", brand: "all", q: "", sort: "score_desc" };
+
+function readUrl(): Filters {
+  const p = new URLSearchParams(window.location.search);
+  const f = { ...DEFAULTS };
+  (Object.keys(DEFAULTS) as (keyof Filters)[]).forEach((k) => {
+    const v = p.get(k);
+    if (v) f[k] = v;
+  });
+  return f;
+}
+
+function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <label className="rk-select">
+      <span className="sr-only">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>{children}</select>
+      <Icon name="chevron" />
+    </label>
+  );
+}
+
+function Seg({ label, options, value, onChange }: { label: string; options: { id: string; name: string }[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="rk-seg" role="group" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.id} type="button" aria-pressed={value === o.id} onClick={() => onChange(o.id)}>{o.name}</button>
+      ))}
+    </div>
+  );
+}
+
+export default function RankingsPage() {
+  const [f, setF] = useState<Filters>(DEFAULTS);
+  const [ready, setReady] = useState(false);
+  const [visible, setVisible] = useState(PAGE);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selected, setSelected] = useState<GearRankingItem[]>([]);
+  const [detail, setDetail] = useState<GearRankingItem | null>(null);
+  const [matrix, setMatrix] = useState<CompareMatrixResponse | null>(null);
+  const [comparing, setComparing] = useState(false);
+  const [toast, setToast] = useState("");
+  const [stuck, setStuck] = useState(false);
+  const deferredQ = useDeferredValue(f.q);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const resultsTop = useRef<HTMLDivElement>(null);
+
+  // URL ⇄ 筛选状态：可分享、刷新不丢、浏览器后退可用
+  useEffect(() => {
+    setF(readUrl());
+    setReady(true);
+    const onPop = () => setF(readUrl());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    const p = new URLSearchParams();
+    (Object.keys(f) as (keyof Filters)[]).forEach((k) => f[k] !== DEFAULTS[k] && p.set(k, f[k]));
+    const qs = p.toString();
+    const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
+  }, [f, ready]);
+
+  const set = useCallback((patch: Partial<Filters>) => {
+    setF((prev) => ({ ...prev, ...patch, ...(patch.category && patch.category !== prev.category ? { brand: "all" } : {}) }));
+    setVisible(PAGE);
+  }, []);
+
+  const flash = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(""), 2600);
+  }, []);
+
+  const categoriesQuery = useQuery({ queryKey: ["rankingCategories"], queryFn: () => api.rankingCategories(), staleTime: 60_000 });
+  const sourcesQuery = useQuery({ queryKey: ["rankingSources"], queryFn: () => api.rankingSources(), staleTime: 60_000 });
+  const brandsQuery = useQuery({
+    queryKey: ["rankingBrands", f.category],
+    queryFn: () => api.rankingBrands(f.category === "all" ? undefined : f.category),
     staleTime: 60_000,
   });
-
-  // 获取榜单装备列表
   const rankingsQuery = useQuery({
-    queryKey: ["rankings", category, tier, source, deferredQuery, sort, gender, brand],
+    queryKey: ["rankings", f.category, f.tier, f.source, deferredQ, f.sort, f.gender, f.brand],
     queryFn: () =>
       api.rankings({
-        category: category === "all" ? undefined : category,
-        tier: tier === "all" ? undefined : tier,
-        source: source === "all" ? undefined : source,
-        gender: gender === "all" ? undefined : gender,
-        brand: brand === "all" ? undefined : brand,
-        q: deferredQuery.trim() || undefined,
-        sort: sort || undefined,
+        category: f.category === "all" ? undefined : f.category,
+        tier: f.tier === "all" ? undefined : f.tier,
+        source: f.source === "all" ? undefined : f.source,
+        gender: f.gender === "all" ? undefined : f.gender,
+        brand: f.brand === "all" ? undefined : f.brand,
+        q: deferredQ.trim() || undefined,
+        sort: f.sort || undefined,
       }),
+    enabled: ready,
     staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 
-  const brandsQuery = useQuery({
-    queryKey: ["rankingBrands", category],
-    queryFn: () => api.rankingBrands(category === "all" ? undefined : category),
-    staleTime: 60_000,
-  });
+  const items = useMemo(() => rankingsQuery.data ?? [], [rankingsQuery.data]);
+  const shown = items.slice(0, visible);
+  const categories = categoriesQuery.data ?? [];
+  const totalItems = categories.reduce((n, c) => n + c.total_count, 0);
+  const catName = f.category === "all" ? "全品类" : categories.find((c) => c.id === f.category)?.name ?? "装备";
+  const sources = (sourcesQuery.data ?? []).filter((s) => s.count > 0);
+  const selectedIds = selected.map((it) => it.id);
 
-  const items = rankingsQuery.data ?? [];
-
-  // 已选条目单独保存，切换品类/筛选后仍保留（可跨品类对比）
-  const selectedItems = selected;
-  const shownItems = useMemo(() => items.slice(0, visible), [items, visible]);
+  // 吸顶工具栏阴影 + 滚到底自动加载更多
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return undefined;
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el) return undefined;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setVisible((v) => v + PAGE), { rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [items.length, visible]);
 
   const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      if (prev.some((it) => it.id === id)) {
-        return prev.filter((it) => it.id !== id);
-      }
-      if (prev.length >= 4) {
-        alert("最多同时选择 4 款装备进行横向对比");
-        return prev;
-      }
-      const found = items.find((it) => it.id === id);
-      return found ? [...prev, found] : prev;
-    });
+    if (selectedIds.includes(id)) return setSelected((prev) => prev.filter((it) => it.id !== id));
+    if (selected.length >= MAX_COMPARE) return flash(`最多同时对比 ${MAX_COMPARE} 款，先移除一款再加`);
+    const found = items.find((it) => it.id === id) ?? (detail?.id === id ? detail : null);
+    if (found) setSelected((prev) => [...prev, found]);
   };
 
-  const clearSelection = () => {
-    setSelected([]);
-  };
-
-  // 触发横向对比
-  const handleStartCompare = async (idsToCompare?: string[]) => {
-    const ids = idsToCompare || selectedIds;
+  const startCompare = async (ids: string[] = selectedIds) => {
     if (ids.length < 2) return;
+    setComparing(true);
     try {
-      setIsComparing(true);
-      const res = await api.rankingCompare(ids);
-      setCompareMatrix(res);
-    } catch (err) {
-      console.error("Failed to load compare matrix", err);
-      alert("对比数据加载失败，请重试");
-      setIsComparing(false);
+      setMatrix(await api.rankingCompare(ids));
+    } catch {
+      flash("对比数据加载失败，请重试");
+      setComparing(false);
     }
   };
 
-  // 跨价位一键对比（当前品类的入门 vs 进阶 vs 旗舰）
-  const handleQuickTierCompare = () => {
-    if (!items || items.length === 0) return;
-    // 从当前品类中挑选 budget, mid, flagship 各 1 款
-    const budgetItem = items.find((it) => it.price_tier === "budget");
-    const midItem = items.find((it) => it.price_tier === "mid");
-    const flagshipItem = items.find((it) => it.price_tier === "flagship");
-
-    const pickedItems = [budgetItem, midItem, flagshipItem].filter(Boolean) as GearRankingItem[];
-    const picked = pickedItems.map((it) => it.id);
-    if (picked.length >= 2) {
-      setSelected(pickedItems);
-      void handleStartCompare(picked);
-    }
+  // 当前结果里各价位的第一名（按当前排序）一键 PK
+  const tierPicks = useMemo(
+    () => (["budget", "mid", "flagship"].map((t) => items.find((it) => it.price_tier === t)).filter(Boolean) as GearRankingItem[]),
+    [items],
+  );
+  const quickCompare = () => {
+    setSelected(tierPicks);
+    void startCompare(tierPicks.map((it) => it.id));
   };
 
-  const sourcesList = [
-    { id: "all", name: "全部来源" },
-    { id: "OutdoorGearLab", name: "OutdoorGearLab（实验室打分）" },
-    { id: "Switchback", name: "Switchback Travel（编辑榜单）" },
-    { id: "什么值得买", name: "什么值得买（国内好价/原创）" },
-    { id: "B站", name: "B站（测评视频）" },
-    { id: "国货", name: "国货品牌" },
-  ];
+  const chips: { key: keyof Filters; label: string }[] = [];
+  if (f.tier !== "all") chips.push({ key: "tier", label: TIERS.find((t) => t.id === f.tier)?.name ?? f.tier });
+  if (f.gender !== "all") chips.push({ key: "gender", label: GENDERS.find((g) => g.id === f.gender)?.name ?? f.gender });
+  if (f.source !== "all") chips.push({ key: "source", label: SOURCE_NAMES[f.source] ?? f.source });
+  if (f.brand !== "all") chips.push({ key: "brand", label: brandsQuery.data?.find((b) => b.brand === f.brand)?.brand_name ?? f.brand });
+  if (f.q) chips.push({ key: "q", label: `“${f.q}”` });
+  const extraCount = chips.filter((c) => c.key !== "tier" && c.key !== "q").length;
+  const resetAll = () => set({ tier: "all", gender: "all", source: "all", brand: "all", q: "" });
 
-  const priceTiers = [
-    { id: "all", name: "全部价位" },
-    { id: "budget", name: "入门性价比（本品类低价 1/3）" },
-    { id: "mid", name: "进阶主力（中间 1/3）" },
-    { id: "flagship", name: "顶级旗舰（高价 1/3）" },
-  ];
-
-  const genders = [
-    { id: "all", name: "全部" },
-    { id: "men", name: "男款" },
-    { id: "women", name: "女款" },
-  ];
+  const moreFilters = (
+    <>
+      <div className="md:hidden">
+        <Select label="排序" value={f.sort} onChange={(v) => set({ sort: v })}>
+          {SORTS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </Select>
+      </div>
+      <Seg label="款式" options={GENDERS} value={f.gender} onChange={(v) => set({ gender: v })} />
+      <Select label="评测来源" value={f.source} onChange={(v) => set({ source: v })}>
+        <option value="all">全部来源</option>
+        {sources.map((s) => (
+          <option key={s.source} value={s.source}>{SOURCE_NAMES[s.source] ?? s.source}（{s.count}）</option>
+        ))}
+      </Select>
+      <Select label="品牌" value={f.brand} onChange={(v) => set({ brand: v })}>
+        <option value="all">全部品牌（{brandsQuery.data?.length ?? 0}）</option>
+        {(brandsQuery.data ?? []).map((b) => (
+          <option key={b.brand} value={b.brand}>{b.brand_name}（{b.count}）</option>
+        ))}
+      </Select>
+    </>
+  );
 
   return (
-    <main className="pb-24">
+    <main className={selected.length ? "pb-28" : ""}>
       <SiteHeader kicker="BENCHMARKS" />
 
-      {/* 头部 Hero */}
-      <section className="feed-hero rise relative overflow-hidden mb-6">
-        <svg
-          className="hero-landscape"
-          viewBox="0 0 680 260"
-          fill="none"
-          preserveAspectRatio="xMidYMid slice"
-          aria-hidden="true"
-        >
-          <path d="m0 260 206-240 90 113 87-85 141 212H0Z" fill="#93ad7a" opacity=".13" />
-          <path d="m125 260 215-240 68 98 82-63 190 205H125Z" fill="#b8c38c" opacity=".15" />
-          <path
-            d="M-20 216 110 155 173 184 339 20 405 119 489 56 700 256M-20 239 110 177 175 205 338 45 402 145 488 80 680 267"
-            stroke="#dce7bc"
-            strokeWidth=".7"
-          />
-        </svg>
-
+      <section className="mb-4 flex flex-col gap-3 rounded-xl bg-forest px-5 py-5 text-[#f7f6e9] sm:flex-row sm:items-end sm:justify-between sm:px-7 sm:py-6 rise">
         <div>
-          <p className="eyebrow">GLOBAL BENCHMARKS & REVIEW MATRIX / 权威榜单与多维横评</p>
-          <h1>
-            装备买对不买贵，<br />
-            <span>看懂差价买到了什么。</span>
-          </h1>
-          <p>
-            数据来自 OutdoorGearLab 实验室打分 + Switchback Travel 编辑榜单，叠加什么值得买好价 / 原创测评与 B站视频等国内口碑，每款都可点回原文核对；
-            <br className="hidden sm:inline" />
-            {categoriesQuery.data ? `${categoriesQuery.data.length} 个品类 · ${categoriesQuery.data.reduce((n, c) => n + c.total_count, 0)} 款装备 · ${brandsQuery.data && category === "all" ? brandsQuery.data.length + " 个品牌 · " : ""}` : ""}优缺点与评价已译成中文。
+          <p className="font-mono text-[11px] tracking-[.16em] text-[#b5c5a8]">权威榜单 · 多维横评</p>
+          <h1 className="mt-1.5 text-xl font-semibold tracking-tight sm:text-3xl">装备买对不买贵，<br className="sm:hidden" /><span className="text-[#c7d39d]">看懂差价买到了什么。</span></h1>
+          <p className="mt-2 hidden max-w-2xl text-[13px] sm:block leading-relaxed text-[#c5cfb9]">
+            OutdoorGearLab 实验室打分 + Switchback 编辑榜单，叠加什么值得买好价与国内口碑；每一条都能点回原文核对。
           </p>
         </div>
-
-        <div className="hero-aside">
-          <span className="field-note">
-            ALL TIERS<br />IN DEPTH.
-          </span>
-          <p>入门 · 进阶 · 旗舰</p>
-          <button
-            type="button"
-            onClick={handleQuickTierCompare}
-            className="btn-primary text-xs mt-3 flex items-center gap-1.5"
-          >
-            <Icon name="compare" className="w-3.5 h-3.5" />
-            <span>跨价位一键 PK (入门 vs 旗舰)</span>
-          </button>
-        </div>
+        {categories.length > 0 && (
+          <dl className="flex shrink-0 gap-5 border-t border-white/10 pt-3 font-mono sm:border-0 sm:pt-0 text-[#e5ebd3]">
+            <div><dt className="text-[11px] text-[#b5c5a8]">品类</dt><dd className="text-xl font-semibold">{categories.length}</dd></div>
+            <div><dt className="text-[11px] text-[#b5c5a8]">装备</dt><dd className="text-xl font-semibold">{totalItems}</dd></div>
+            {sources.find((s) => s.source === "国货") && (
+              <div><dt className="text-[11px] text-[#b5c5a8]">国货</dt><dd className="text-xl font-semibold">{sources.find((s) => s.source === "国货")?.count}</dd></div>
+            )}
+          </dl>
+        )}
       </section>
 
-      {/* 品类导航横向 Tab */}
-      <nav className="mb-6 overflow-x-auto pb-2 scrollbar-none" aria-label="装备品类分类">
-        <div className="flex gap-2 min-w-max">
-          <button
-            type="button"
-            onClick={() => { setCategory("all"); setBrand("all"); setVisible(24); }}
-            className={`px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              category === "all"
-                ? "bg-[#1d4434] text-white shadow-sm"
-                : "bg-white text-[#213b2e] border border-[#dce0d4] hover:bg-[#f2f4ec]"
-            }`}
-          >
-            <Icon name="grid" className="w-3.5 h-3.5" />
-            <span>全品类汇总</span>
+      <div ref={sentinel} aria-hidden="true" />
+      <div className={`rk-toolbar ${stuck ? "is-stuck" : ""}`}>
+        <nav className="rk-pills" aria-label="装备品类">
+          <button type="button" className="rk-pill" aria-pressed={f.category === "all"} onClick={() => set({ category: "all" })}>
+            全部 <small>{totalItems || ""}</small>
           </button>
-
-          {(categoriesQuery.data ?? []).map((cat) => {
-            const active = category === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => { setCategory(cat.id); setBrand("all"); setVisible(24); }}
-                className={`px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  active
-                    ? "bg-[#1d4434] text-white shadow-sm"
-                    : "bg-white text-[#213b2e] border border-[#dce0d4] hover:bg-[#f2f4ec]"
-                }`}
-              >
-                <span>{cat.name}</span>
-                <span
-                  className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                    active ? "bg-white/20 text-white" : "bg-[#eceee5] text-[#687366]"
-                  }`}
-                >
-                  {cat.total_count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* 筛选与检索控制区 */}
-      <section className="card p-4 sm:p-5 mb-6 border border-[#dce0d4] bg-[#fffefa] space-y-4">
-        {/* 价位段梯队快速切片 */}
-        <div>
-          <span className="text-[11px] font-bold text-[#687366] uppercase tracking-wider block mb-2 font-mono">
-            价格梯队筛选 (PRICE TIER)
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {priceTiers.map((pTier) => {
-              const active = tier === pTier.id;
-              return (
-                <button
-                  key={pTier.id}
-                  type="button"
-                  onClick={() => setTier(pTier.id)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
-                    active
-                      ? "bg-[#1d4434] text-white font-semibold"
-                      : "bg-[#f5f4ee] text-[#4a5547] hover:bg-[#eaece2] border border-[#dce0d4]"
-                  }`}
-                >
-                  {pTier.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 性别与品牌 */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-[#687366] font-mono">款式:</span>
-          {genders.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => setGender(g.id)}
-              className={`px-2.5 py-1 rounded text-xs transition-all ${
-                gender === g.id
-                  ? "bg-[#1d4434] text-white font-semibold"
-                  : "bg-[#f5f4ee] text-[#556251] hover:bg-[#eaece2] border border-[#dce0d4]"
-              }`}
-            >
-              {g.name}
+          {categories.map((c) => (
+            <button key={c.id} type="button" className="rk-pill" aria-pressed={f.category === c.id} onClick={() => set({ category: c.id })}>
+              {c.name} <small>{c.total_count}</small>
             </button>
           ))}
-          <span className="text-[11px] font-bold text-[#687366] font-mono ml-3">品牌:</span>
-          <select
-            value={brand}
-            onChange={(e) => setBrand(e.target.value)}
-            className="field text-xs py-1 px-2 min-h-[32px] bg-white border-[#dce0d4]"
-            style={{ width: "auto", maxWidth: 280 }}
-            aria-label="品牌筛选"
+        </nav>
+
+        <div className="mt-2.5 flex items-center gap-2 md:flex-wrap">
+          <div className="relative min-w-0 flex-1 md:basis-56">
+            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 !h-4 !w-4 -translate-y-1/2 text-dim" />
+            <input
+              type="search"
+              value={f.q}
+              onChange={(e) => set({ q: e.target.value })}
+              placeholder={`在${catName}里搜品牌 / 型号，如 始祖鸟、Speedgoat`}
+              aria-label="搜索装备"
+              className="h-[38px] w-full rounded-lg border border-line bg-panel pl-9 pr-3 text-[13px] text-ink outline-none placeholder:text-[#899181] focus:border-forest"
+            />
+          </div>
+          <div className="hidden md:block">
+            <Seg label="价格梯队" options={TIERS} value={f.tier} onChange={(v) => set({ tier: v })} />
+          </div>
+          <div className="hidden md:block">
+            <Select label="排序" value={f.sort} onChange={(v) => set({ sort: v })}>
+              {SORTS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 text-[13px] ${showFilters || extraCount ? "border-forest text-forest" : "border-line text-ink"} bg-panel`}
           >
-            <option value="all">全部品牌（{brandsQuery.data?.length ?? 0}）</option>
-            {(brandsQuery.data ?? []).map((b) => (
-              <option key={b.brand} value={b.brand}>
-                {b.brand_name}（{b.count}）
-              </option>
+            <Icon name="filter" className="!h-4 !w-4" />
+            <span className="md:hidden">筛选排序</span><span className="hidden md:inline">更多筛选</span>{extraCount ? ` · ${extraCount}` : ""}
+          </button>
+        </div>
+
+        <div className="rk-mobile-row mt-2 flex items-center gap-2 md:hidden">
+          <div className="min-w-0 flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <Seg label="价格梯队" options={TIERS} value={f.tier} onChange={(v) => set({ tier: v })} />
+          </div>
+        </div>
+        {showFilters && <div className="mt-2 flex flex-wrap items-center gap-2">{moreFilters}</div>}
+
+        {chips.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {chips.map((c) => (
+              <button key={c.key} type="button" className="rk-chip" onClick={() => set({ [c.key]: DEFAULTS[c.key] } as Partial<Filters>)} aria-label={`移除筛选：${c.label}`}>
+                {c.label}<Icon name="close" />
+              </button>
             ))}
-          </select>
-        </div>
-
-        {/* 权威机构与检索/排序控制栏 */}
-        <div className="pt-3 border-t border-[#eceee5] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* 权威测评来源 */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-            <span className="text-[11px] font-bold text-[#687366] font-mono flex-shrink-0">
-              评测源:
-            </span>
-            {sourcesList.map((src) => {
-              const active = source === src.id;
-              return (
-                <button
-                  key={src.id}
-                  type="button"
-                  onClick={() => setSource(src.id)}
-                  className={`px-2.5 py-1 rounded text-xs whitespace-nowrap transition-all ${
-                    active
-                      ? "bg-[#2b4c68] text-white font-semibold"
-                      : "bg-[#f5f4ee] text-[#556251] hover:bg-[#eaece2] border border-[#dce0d4]"
-                  }`}
-                >
-                  {src.name}
-                </button>
-              );
-            })}
+            <button type="button" onClick={resetAll} className="min-h-[30px] px-2 text-xs text-dim underline-offset-2 hover:underline">清除全部</button>
           </div>
-
-          {/* 搜索与排序 */}
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="relative w-48 sm:w-60">
-              <input
-                type="text"
-                placeholder="搜品牌/型号，如 始祖鸟、Speedgoat"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="field text-xs pl-8 pr-3 py-1.5 min-h-[36px]"
-                style={{ paddingLeft: 32 }}
-              />
-              <span className="absolute left-2.5 top-2.5 text-[#889280]">
-                <Icon name="search" className="w-3.5 h-3.5" />
-              </span>
-            </div>
-
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="field text-xs py-1.5 px-2 min-h-[36px] bg-white border-[#dce0d4]"
-              style={{ width: "auto" }}
-              aria-label="排序方式"
-            >
-              <option value="score_desc">实测得分最高</option>
-              <option value="value_desc">性价比（每元得分）</option>
-              <option value="awards_desc">上榜次数最多</option>
-              <option value="price_asc">价格: 从低到高</option>
-              <option value="price_desc">价格: 从高到低</option>
-            </select>
-          </div>
-        </div>
-      </section>
-
-      {/* 结果标题与快捷跨价位对比按钮 */}
-      <div className="flex items-center justify-between mb-4 px-1">
-        <div>
-          <h2 className="text-base font-bold text-[#213b2e]">
-            {category === "all" ? "全品类装备推荐榜" : `${categoriesQuery.data?.find((c) => c.id === category)?.name || "装备"} 权威推荐`}
-            <span className="text-xs text-[#687366] font-mono ml-2 font-normal">
-              共收录 {items.length} 款装备
-            </span>
-          </h2>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleQuickTierCompare}
-          className="text-xs text-[#1d4434] font-semibold hover:underline flex items-center gap-1"
-        >
-          <Icon name="compare" className="w-3.5 h-3.5" />
-          <span>跨价位一键对比 (入门 vs 进阶 vs 旗舰)</span>
-        </button>
+        )}
       </div>
 
-      {/* 卡片网格 */}
+      <div ref={resultsTop} className="mb-3 flex flex-wrap items-end justify-between gap-2 px-0.5">
+        <h2 className="text-lg font-semibold text-ink">
+          {catName}推荐
+          <span className="ml-2 font-mono text-xs font-normal text-dim">
+            {rankingsQuery.isFetching && !rankingsQuery.isPending ? "更新中…" : `${items.length} 款`}
+          </span>
+        </h2>
+        {f.category !== "all" && tierPicks.length >= 2 && (
+          <button type="button" onClick={quickCompare} className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-[13px] font-semibold text-forest hover:bg-[#edf0e5]">
+            <Icon name="compare" className="!h-4 !w-4" />
+            入门 vs 进阶 vs 旗舰 一键对比
+          </button>
+        )}
+      </div>
+
       {rankingsQuery.isPending ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card p-6 h-96 animate-pulse bg-white/60" />
-          ))}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-[440px] animate-pulse rounded-lg border border-line bg-panel/70" />)}
+        </div>
+      ) : rankingsQuery.isError ? (
+        <div className="empty-state">
+          <Icon name="mountain" />
+          <h2>榜单暂时没有加载出来</h2>
+          <p>请确认后端已启动，然后重试。</p>
+          <button type="button" className="btn btn-ghost" onClick={() => void rankingsQuery.refetch()}>重新加载</button>
         </div>
       ) : items.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {shownItems.map((item) => (
-            <RankingCard
-              key={item.id}
-              item={item}
-              selected={selectedIds.includes(item.id)}
-              onToggleSelect={toggleSelect}
-            />
-          ))}
+        <>
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 transition-opacity ${rankingsQuery.isFetching ? "opacity-60" : ""}`}>
+            {shown.map((item, i) => (
+              <RankingCard
+                key={item.id}
+                item={item}
+                rank={i + 1}
+                selected={selectedIds.includes(item.id)}
+                onToggleSelect={toggleSelect}
+                onOpen={setDetail}
+              />
+            ))}
+          </div>
           {items.length > visible && (
-            <div className="md:col-span-2 lg:col-span-3 text-center">
-              <button type="button" onClick={() => setVisible((v) => v + 24)} className="btn-ghost text-xs px-6 py-2">
-                加载更多（还有 {items.length - visible} 款）
+            <div ref={moreRef} className="mt-6 flex justify-center">
+              <button type="button" onClick={() => setVisible((v) => v + PAGE)} className="btn btn-ghost">
+                加载更多 <small className="text-dim">还有 {items.length - visible} 款</small>
               </button>
             </div>
           )}
-        </div>
+        </>
       ) : (
-        <div className="card p-12 text-center bg-white border border-[#dce0d4] rounded-lg">
-          <Icon name="search" className="w-8 h-8 text-[#889280] mx-auto mb-3" />
-          <h3 className="font-bold text-base text-[#213b2e] mb-1">未找到匹配条件的装备</h3>
-          <p className="text-xs text-[#687366] mb-4">
-            试试重置筛选条件或换一个搜索词。
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setTier("all");
-              setSource("all");
-              setQuery("");
-              setGender("all");
-              setBrand("all");
-            }}
-            className="btn-primary text-xs"
-          >
-            重置全部筛选
-          </button>
+        <div className="empty-state">
+          <Icon name="search" />
+          <h2>没有符合条件的装备</h2>
+          <p>{f.q ? `「${f.q}」在${catName}里没有结果，` : ""}试试放宽筛选，或切换到全部品类。</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={resetAll} className="btn-primary">清除筛选</button>
+            {f.category !== "all" && <button type="button" onClick={() => set({ category: "all" })} className="btn btn-ghost">在全部品类中查找</button>}
+          </div>
         </div>
       )}
 
-      {/* 底部悬浮对比抽屉 */}
       <CompareDrawer
-        selectedItems={selectedItems}
+        selectedItems={selected}
         onRemove={toggleSelect}
-        onClear={clearSelection}
-        onCompare={() => void handleStartCompare()}
+        onClear={() => setSelected([])}
+        onCompare={() => void startCompare()}
+        loading={comparing && !matrix}
       />
 
-      {/* 横向全维对比弹窗 */}
-      {isComparing && (
+      <RankingDetail
+        item={detail}
+        selected={detail ? selectedIds.includes(detail.id) : false}
+        onToggleSelect={toggleSelect}
+        onClose={() => setDetail(null)}
+      />
+
+      {comparing && matrix && (
         <CompareModal
-          matrix={compareMatrix}
-          onClose={() => {
-            setIsComparing(false);
-            setCompareMatrix(null);
+          matrix={matrix}
+          onRemove={(id) => {
+            const ids = selectedIds.filter((x) => x !== id);
+            setSelected((prev) => prev.filter((it) => it.id !== id));
+            if (ids.length >= 2) void startCompare(ids);
+            else { setComparing(false); setMatrix(null); }
           }}
+          onClose={() => { setComparing(false); setMatrix(null); }}
         />
+      )}
+
+      {toast && (
+        <div role="status" className="fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-lg bg-ink px-4 py-2.5 text-[13px] text-white shadow-lg rise">{toast}</div>
       )}
     </main>
   );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { api, type WatchItem } from "@/lib/api";
@@ -22,6 +22,15 @@ export default function WatchPage() {
   const [platforms, setPlatforms] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
+  // 从榜单「关注降价」跳转时预填名称与关键词
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const n = p.get("name");
+    if (n) setName(n);
+    const k = p.get("keywords");
+    if (k) setKeywords(k);
+    if (n || k) document.getElementById("watch-target")?.focus();
+  }, []);
   const watches = useQuery({ queryKey: ["watches"], queryFn: api.watches });
   const selected = watches.data?.find((watch) => watch.id === selectedId) ?? null;
   const alerts = useQuery({
@@ -65,7 +74,7 @@ export default function WatchPage() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Link href="#" className="font-medium hover:underline" onClick={(e) => { e.preventDefault(); setSelectedId(selectedId === watch.id ? null : watch.id); }}>{watch.name}</Link>
+                <button type="button" className="text-left font-medium hover:underline" onClick={() => setSelectedId(selectedId === watch.id ? null : watch.id)}>{watch.name}</button>
                 <span className={`badge ${watch.active ? "badge-verified" : "badge-reported"}`}>{watch.active ? "关注中" : "已暂停"}</span>
                 {watch.target_price_cents > 0 && <span className="num text-accent">目标 {cny(watch.target_price_cents)}</span>}
               </div>
@@ -87,7 +96,7 @@ export default function WatchPage() {
         {selected == null ? <p className="text-xs leading-7 text-dim">点上方任一关注的「命中记录」，查看为什么提醒、当时线报是多少钱。</p> : alerts.isPending ? <p className="micro-label" role="status">正在载入记录…</p> : alerts.isError ? <p className="error-text">暂时无法载入记录。</p> : alerts.data?.length ? <ul className="space-y-4">{alerts.data.map((alert) => <li key={alert.id} className="border-b border-line pb-4 text-xs">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <span className={`badge ${alert.kind === "target_hit" ? "badge-verified" : "badge-reported"}`}>{alertKindName(alert.kind)}</span>
-            <span className="text-[10px] text-dim">{timeAgo(alert.created_at)}</span>
+            <span className="text-[11px] text-dim">{timeAgo(alert.created_at)}</span>
           </div>
           <p className="num mb-2 text-accent">{cny(alert.price_cents)}</p>
           <p className="leading-7">{alert.reason}</p>
