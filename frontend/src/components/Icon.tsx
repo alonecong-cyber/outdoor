@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-type IconName = "mountain" | "search" | "arrow" | "external" | "grid" | "bell" | "clock" | "check" | "chevron" | "close" | "menu" | "filter";
+type IconName = "mountain" | "search" | "arrow" | "external" | "grid" | "bell" | "clock" | "check" | "chevron" | "close" | "menu" | "filter" | "award" | "compare";
 
 const paths: Record<IconName, React.ReactNode> = {
   mountain: <><path d="m2 19 7-13 5 8 3-5 5 10H2Z" /><path d="m6 12 3 1 2-3m4 2 2 1 2-1" /></>,
@@ -15,6 +15,8 @@ const paths: Record<IconName, React.ReactNode> = {
   close: <path d="m6 6 12 12M6 18 18 6" />,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   filter: <><path d="M3 6h18M7 12h10M10 18h4" /></>,
+  award: <><circle cx="12" cy="8" r="6" /><path d="m15.4 12.8 2.6 7.2-6-3-6 3 2.6-7.2" /></>,
+  compare: <><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /><path d="M12 4v16" /></>,
 };
 
 export function Icon({ name, className = "", style }: { name: IconName; className?: string; style?: CSSProperties }) {

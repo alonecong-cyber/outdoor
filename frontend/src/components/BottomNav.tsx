@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 
 const items = [
   { href: "/", label: "发现", icon: "mountain" as const },
+  { href: "/rankings", label: "榜单", icon: "award" as const },
   { href: "/variants", label: "目录", icon: "grid" as const },
   { href: "/watch", label: "关注", icon: "bell" as const },
   { href: "/alerts", label: "提醒", icon: "clock" as const },

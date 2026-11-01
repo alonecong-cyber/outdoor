@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.routes import alerts, catalog, deals, health, pricing, watch
+from app.api.routes import alerts, catalog, deals, health, pricing, rankings, watch
 
 
 def build_api_router() -> APIRouter:
@@ -13,4 +13,5 @@ def build_api_router() -> APIRouter:
     api.include_router(alerts.router)
     api.include_router(deals.router)
     api.include_router(watch.router)
+    api.include_router(rankings.router)
     return api

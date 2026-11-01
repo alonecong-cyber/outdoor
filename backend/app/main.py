@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api.routes import build_api_router
+from app.api.routes import build_api_router, health
 from app.config import get_settings
 from app.db import init_db
 
@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="OutdoorDeal", version=__version__, lifespan=lifespan)
-    app.include_router(build_api_router())
+    app.include_router(health.router)  # 根路径 /health
+    app.include_router(build_api_router())  # /api 前缀路由
     return app
 
 
