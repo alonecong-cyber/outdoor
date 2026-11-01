@@ -26,21 +26,45 @@ export type PriceTier = "budget" | "mid" | "flagship";
 
 export type GearCategory =
   | "hardshell"
+  | "rain_jacket"
   | "softshell"
   | "fleece"
   | "baselayer"
+  | "down"
+  | "insulated"
+  | "hiking_pants"
+  | "rain_pants"
   | "socks"
   | "shoes"
+  | "hiking_boots"
+  | "trail_running"
+  | "approach"
   | "tents"
   | "poles"
-  | "insulated"
-  | "backpacks";
+  | "backpacks"
+  | "daypacks"
+  | "sleeping_bags"
+  | "sleeping_pads"
+  | "headlamps";
 
 export type ReviewAuthority = {
   source: string;
   badge: string;
   score?: number | null;
   quote?: string;
+  url?: string;
+  rank?: number | null;
+  rank_total?: number | null;
+};
+
+export type ExternalLink = { label: string; url: string };
+
+export type BrandStat = {
+  brand: string;
+  brand_name: string;
+  country: string;
+  count: number;
+  categories: string[];
 };
 
 export type GearSpec = {
@@ -73,7 +97,7 @@ export type GearRankingItem = {
   price_tier: PriceTier;
   price_tier_name: string;
   image: string;
-  rating_score: number;
+  rating_score: number | null;
   price_guide: PriceGuide;
   specs: GearSpec;
   authorities: ReviewAuthority[];
@@ -82,6 +106,16 @@ export type GearRankingItem = {
   bottom_line: string;
   gap_analysis: string;
   matched_style_number?: string | null;
+  gender?: "men" | "women" | "unisex";
+  gender_name?: string;
+  brand_country?: string;
+  image_remote?: string;
+  image_credit?: string;
+  score_basis?: string;
+  spec_table?: Record<string, string>;
+  sub_scores?: Record<string, number>;
+  cn_links?: ExternalLink[];
+  buy_links?: ExternalLink[];
 };
 
 export type CategoryMeta = {
@@ -434,18 +468,21 @@ export const api = {
   watchAlerts: (id: number) => request<WatchAlertItem[]>(`/api/watch/${id}/alerts`),
   ingestDeals: (details = 5) =>
     request<IngestResult>(`/api/deals/ingest?details=${details}`, { method: "POST" }),
-  rankings: (params: { category?: string; tier?: string; source?: string; brand?: string; q?: string; sort?: string } = {}) => {
+  rankings: (params: { category?: string; tier?: string; source?: string; brand?: string; gender?: string; q?: string; sort?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.category) qs.set("category", params.category);
     if (params.tier) qs.set("tier", params.tier);
     if (params.source) qs.set("source", params.source);
     if (params.brand) qs.set("brand", params.brand);
+    if (params.gender) qs.set("gender", params.gender);
     if (params.q) qs.set("q", params.q);
     if (params.sort) qs.set("sort", params.sort);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return request<GearRankingItem[]>(`/api/rankings${suffix}`);
   },
   rankingCategories: () => request<CategoryMeta[]>("/api/rankings/categories"),
+  rankingBrands: (category?: string) =>
+    request<BrandStat[]>(`/api/rankings/brands${category ? `?category=${encodeURIComponent(category)}` : ""}`),
   rankingDetail: (id: string) => request<GearRankingItem>(`/api/rankings/${id}`),
   rankingCompare: (ids: string[]) =>
     request<CompareMatrixResponse>("/api/rankings/compare", {

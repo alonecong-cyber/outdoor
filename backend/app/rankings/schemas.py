@@ -21,22 +21,36 @@ class PriceTier(StrEnum):
 
 class GearCategory(StrEnum):
     HARDSHELL = "hardshell"  # 硬壳冲锋衣
-    SOFTSHELL = "softshell"  # 软壳衣裤
+    RAIN_JACKET = "rain_jacket"  # 轻量防水夹克
+    SOFTSHELL = "softshell"  # 软壳
     FLEECE = "fleece"  # 抓绒中层
     BASELAYER = "baselayer"  # 打底秋衣 / 排汗内衣
-    SOCKS = "socks"  # 户外羊毛袜
-    SHOES = "shoes"  # 徒步与越野鞋 (通勤+徒步)
-    TENTS = "tents"  # 露营帐篷
+    DOWN = "down"  # 羽绒服
+    INSULATED = "insulated"  # 棉服 / 人造保暖
+    HIKING_PANTS = "hiking_pants"  # 徒步裤
+    RAIN_PANTS = "rain_pants"  # 防水裤
+    SOCKS = "socks"  # 户外袜
+    SHOES = "shoes"  # 低帮徒步鞋（通勤+徒步）
+    HIKING_BOOTS = "hiking_boots"  # 中高帮徒步靴
+    TRAIL_RUNNING = "trail_running"  # 越野跑鞋
+    APPROACH = "approach"  # 接近鞋
+    TENTS = "tents"  # 帐篷
     POLES = "poles"  # 登山杖
-    INSULATED = "insulated"  # 保暖棉羽
-    BACKPACKS = "backpacks"  # 户外背包
+    BACKPACKS = "backpacks"  # 重装背包
+    DAYPACKS = "daypacks"  # 日行包
+    SLEEPING_BAGS = "sleeping_bags"  # 睡袋
+    SLEEPING_PADS = "sleeping_pads"  # 睡垫
+    HEADLAMPS = "headlamps"  # 头灯
 
 
 class ReviewAuthority(BaseModel):
     source: str  # 测评机构：如 OGL, Switchback, CleverHiker, RunRepeat, SMZDM, 8264
     badge: str  # 如 Editors' Choice, #1 Best Overall, Best Buy, 神价爆款
     score: int | None = None  # 1-100 分制
-    quote: str = ""  # 权威机构一句话评价
+    quote: str = ""  # 权威机构一句话评价（原文）
+    url: str = ""  # 出处链接（评测页 / 榜单页）
+    rank: int | None = None  # 该榜单内排名
+    rank_total: int | None = None  # 该榜单参评总数
 
 
 class GearSpec(BaseModel):
@@ -49,6 +63,11 @@ class GearSpec(BaseModel):
         default_factory=list
     )  # 如 ["高海拔攀登", "暴风雨徒步", "城市通勤"]
     key_features: list[str] = Field(default_factory=list)  # 核心卖点清单
+
+
+class ExternalLink(BaseModel):
+    label: str  # 如 "什么值得买"、"小红书"
+    url: str
 
 
 class PriceGuide(BaseModel):
@@ -71,7 +90,7 @@ class GearRankingItem(BaseModel):
     price_tier: PriceTier  # 价位梯度
     price_tier_name: str  # 梯队中文名，如 "顶级专业旗舰"
     image: str  # 高清 CDN 图片链接
-    rating_score: int  # 综合评测总分 (满分 100)
+    rating_score: int | None = None  # OGL 实测总分 (满分 100)；仅有编辑推荐无打分时为空
     price_guide: PriceGuide  # 立体价格指南
     specs: GearSpec  # 详细技术物理规格
     authorities: list[ReviewAuthority]  # 权威榜单奖项与评价列表
@@ -80,6 +99,16 @@ class GearRankingItem(BaseModel):
     bottom_line: str  # 权威总评一句话
     gap_analysis: str  # 深度差价与性价比深度解析
     matched_style_number: str | None = None  # 系统内对应的 Style 款号（便于关联比价）
+    gender: str = "unisex"  # men / women / unisex
+    gender_name: str = "通用"
+    brand_country: str = ""
+    image_remote: str = ""  # 原始图片 URL（本地图失效时回退）
+    image_credit: str = ""  # 图片来源站点
+    score_basis: str = ""  # 评分口径说明
+    spec_table: dict[str, str] = Field(default_factory=dict)  # 测评站完整规格表（原文）
+    sub_scores: dict[str, float] = Field(default_factory=dict)  # 分项评分（满分 10）
+    cn_links: list[ExternalLink] = Field(default_factory=list)  # 国内口碑/购买检索
+    buy_links: list[ExternalLink] = Field(default_factory=list)  # 海外购买/评测
 
 
 class CategoryMeta(BaseModel):

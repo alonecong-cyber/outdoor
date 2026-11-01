@@ -5,6 +5,32 @@ import { useState } from "react";
 import type { GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
 
+const TIER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  budget: { bg: "#e8eee2", text: "#2e5631", border: "#cbd8bf" },
+  mid: { bg: "#e6eef5", text: "#2b4c68", border: "#bed0e2" },
+  flagship: { bg: "#f7eee3", text: "#7e4a1a", border: "#e8cfb5" },
+};
+
+/** 本地图 → 原站图 → 占位图，三级回退，保证每张卡片都有图。 */
+export function GearImage({ item, className }: { item: GearRankingItem; className?: string }) {
+  const chain = [item.image, item.image_remote, "/products/placeholder.svg"].filter(Boolean) as string[];
+  const [idx, setIdx] = useState(0);
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={chain[Math.min(idx, chain.length - 1)]}
+      alt={item.name_cn}
+      className={className}
+      loading="lazy"
+      onError={() => setIdx((i) => (i < chain.length - 1 ? i + 1 : i))}
+    />
+  );
+}
+
+export function rankLabel(a: { rank?: number | null; rank_total?: number | null }) {
+  return a.rank ? `#${a.rank}${a.rank_total ? `/${a.rank_total}` : ""}` : "";
+}
+
 export function RankingCard({
   item,
   selected,
@@ -14,15 +40,9 @@ export function RankingCard({
   selected: boolean;
   onToggleSelect: (id: string) => void;
 }) {
-  const [showAnalysis, setShowAnalysis] = useState(false);
-
-  const tierColors: Record<string, { bg: string; text: string; border: string }> = {
-    budget: { bg: "#e8eee2", text: "#2e5631", border: "#cbd8bf" },
-    mid: { bg: "#e6eef5", text: "#2b4c68", border: "#bed0e2" },
-    flagship: { bg: "#f7eee3", text: "#7e4a1a", border: "#e8cfb5" },
-  };
-
-  const currentTier = tierColors[item.price_tier] || tierColors.budget;
+  const [showMore, setShowMore] = useState(false);
+  const tier = TIER_COLORS[item.price_tier] || TIER_COLORS.budget;
+  const subScores = Object.entries(item.sub_scores ?? {});
 
   return (
     <article
@@ -31,38 +51,33 @@ export function RankingCard({
       }`}
       style={{ background: "#fffefa" }}
     >
-      {/* 顶部图片区域 */}
-      <div className="relative w-full pt-[68%] bg-white border-b border-[#eceee5] overflow-hidden group">
-        <img
-          src={item.image}
-          alt={item.name_cn}
-          className="absolute inset-0 w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          onError={(e) => {
-            // 图片加载异常时安全降级
-            (e.target as HTMLImageElement).src =
-              "https://www.rei.com/media/50cb5e27-0447-4887-a8c1-e270ea93daac.jpg?size=784x588";
-          }}
+      <div className="relative w-full pt-[62%] bg-white border-b border-[#eceee5] overflow-hidden group">
+        <GearImage
+          item={item}
+          className="absolute inset-0 w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
         />
-
-        {/* 顶部标签栏 */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
           <span
             className="text-[10px] font-semibold px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: currentTier.bg,
-              color: currentTier.text,
-              border: `1px solid ${currentTier.border}`,
-            }}
+            style={{ backgroundColor: tier.bg, color: tier.text, border: `1px solid ${tier.border}` }}
           >
             {item.price_tier_name}
           </span>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#1d4434] text-white">
-            ★ {item.rating_score}分
-          </span>
+          {item.rating_score ? (
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#1d4434] text-white" title={item.score_basis}>
+              ★ {item.rating_score} 分
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#2b4c68] text-white" title={item.score_basis}>
+              编辑推荐
+            </span>
+          )}
+          {item.gender_name && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-white/90 text-[#4a5547] border border-[#dce0d4]">
+              {item.gender_name}
+            </span>
+          )}
         </div>
-
-        {/* 对比选择按钮 */}
         <button
           type="button"
           onClick={() => onToggleSelect(item.id)}
@@ -76,116 +91,180 @@ export function RankingCard({
           <Icon name={selected ? "check" : "compare"} className="w-3.5 h-3.5" />
           <span>{selected ? "已选对比" : "加入对比"}</span>
         </button>
+        {item.image_credit && (
+          <span className="absolute bottom-1 right-1.5 text-[9px] text-white/90 bg-black/35 px-1 rounded">
+            图：{item.image_credit}
+          </span>
+        )}
       </div>
 
-      {/* 主体信息 */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
-          {/* 品类与权威背书 */}
           <div className="flex items-center justify-between gap-2 text-[11px] text-[#687366] font-mono mb-1">
-            <span>{item.brand_name}</span>
+            <span>
+              {item.brand_name}
+              {item.brand_country ? ` · ${item.brand_country}` : ""}
+            </span>
             <span>{item.category_name}</span>
           </div>
+          <h3 className="font-semibold text-base leading-snug text-[#213b2e] mb-0.5">{item.name_cn}</h3>
+          <p className="text-xs text-[#687366] font-mono mb-3 line-clamp-1">{item.name}</p>
 
-          {/* 标题 */}
-          <h3 className="font-semibold text-base leading-snug text-[#213b2e] mb-1">
-            {item.name_cn}
-          </h3>
-          <p className="text-xs text-[#687366] font-mono mb-3 line-clamp-1">
-            {item.name}
-          </p>
-
-          {/* 权威榜单奖项徽章 */}
           <div className="flex flex-wrap gap-1.5 mb-3">
             {item.authorities.map((auth, idx) => (
-              <span
+              <a
                 key={idx}
-                className="inline-flex items-center gap-1 text-[10px] bg-[#f0f3eb] text-[#335338] px-2 py-0.5 rounded border border-[#d6decb] font-medium"
+                href={auth.url || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10px] bg-[#f0f3eb] text-[#335338] px-2 py-0.5 rounded border border-[#d6decb] font-medium hover:bg-[#e3eadb]"
                 title={auth.quote}
               >
                 <Icon name="award" className="w-3 h-3 text-[#1d4434]" />
-                <strong>{auth.source}</strong> {auth.badge}
-              </span>
+                <strong>{auth.source === "Switchback Travel" ? "Switchback" : auth.source === "OutdoorGearLab" ? "OGL" : auth.source}</strong>
+                <span className="font-mono">{rankLabel(auth)}</span>
+                <span className="line-clamp-1 max-w-[150px]">{auth.badge}</span>
+              </a>
             ))}
           </div>
 
-          {/* 价格板块 (国内券后 vs 海淘折算) */}
           <div className="p-2.5 rounded bg-[#f5f4ee] border border-[#e4e7dd] mb-3">
             <div className="flex items-baseline justify-between mb-1">
               <div>
-                <span className="text-[10px] text-[#687366] mr-1">建议券后到手:</span>
-                <span className="text-base font-bold text-[#be482b] font-mono">
-                  {item.price_guide.deal_cny}
-                </span>
+                <span className="text-[10px] text-[#687366] mr-1">美标价</span>
+                <span className="text-base font-bold text-[#be482b] font-mono">{item.price_guide.overseas_usd}</span>
+                <span className="text-[11px] text-[#687366] font-mono ml-1.5">{item.price_guide.deal_cny}</span>
               </div>
-              <span className="text-[11px] text-[#899181] line-through font-mono">
-                专柜 {item.price_guide.msrp_cny}
-              </span>
             </div>
-
             {item.price_guide.overseas_landed_cny && (
-              <div className="text-[11px] text-[#456d80] flex items-center justify-between font-mono pt-1 border-t border-[#e3e7da]">
-                <span>海淘预估落地:</span>
+              <div
+                className="text-[11px] text-[#456d80] flex items-center justify-between font-mono pt-1 border-t border-[#e3e7da]"
+                title={item.price_guide.promo_tips}
+              >
+                <span>海淘落地估算（含转运+税）</span>
                 <span className="font-semibold">{item.price_guide.overseas_landed_cny}</span>
               </div>
             )}
           </div>
 
-          {/* 核心规格属性 */}
           <div className="grid grid-cols-2 gap-2 text-[11px] text-[#4a5547] bg-[#fafaf6] p-2 rounded border border-[#e8ebe0] mb-3 font-mono">
-            <div>
+            <div className="truncate">
               <span className="text-[#889280]">重量：</span>
-              <span className="font-semibold">{item.specs.weight || "轻量设计"}</span>
+              <span className="font-semibold">{item.specs.weight || "—"}</span>
             </div>
-            <div>
-              <span className="text-[#889280]">面料：</span>
-              <span className="font-semibold truncate" title={item.specs.material}>
-                {item.specs.material.split("(")[0]}
-              </span>
-            </div>
-            <div className="col-span-2">
-              <span className="text-[#889280]">防护/透湿：</span>
-              <span className="font-semibold">{item.specs.waterproof_rating}</span>
+            <div className="truncate" title={item.specs.material}>
+              <span className="text-[#889280]">材质：</span>
+              <span className="font-semibold">{item.specs.material || "—"}</span>
             </div>
           </div>
 
-          {/* 权威一句话结论 */}
-          <p className="text-xs text-[#36493b] leading-relaxed mb-3 italic bg-[#edf1e8] p-2 rounded border-l-2 border-[#1d4434]">
-            “{item.bottom_line}”
-          </p>
-        </div>
-
-        {/* 底部操作与差价分析折叠 */}
-        <div>
-          {/* 展开深度差价买到了什么 */}
-          <button
-            type="button"
-            onClick={() => setShowAnalysis(!showAnalysis)}
-            className="w-full text-left text-xs font-semibold text-[#1d4434] py-1 flex items-center justify-between border-t border-[#eceee5] pt-2 mb-2"
-          >
-            <span>💡 差价买到了什么？(深度解析)</span>
-            <span className="text-[10px] text-[#687366]">{showAnalysis ? "收起 ▲" : "展开 ▼"}</span>
-          </button>
-
-          {showAnalysis && (
-            <div className="text-xs text-[#4b5847] leading-relaxed p-2.5 rounded bg-[#f3f6ee] border border-[#dce3d2] mb-3">
-              <p className="font-medium text-[#1d4434] mb-1">【选购取舍建议】：</p>
-              <p>{item.gap_analysis}</p>
+          {subScores.length > 0 && (
+            <div className="space-y-1 mb-3">
+              {subScores.slice(0, 5).map(([k, v]) => (
+                <div key={k} className="flex items-center gap-2 text-[10px] text-[#4a5547]">
+                  <span className="w-32 truncate" title={k}>{k}</span>
+                  <span className="flex-1 h-1.5 bg-[#eceee5] rounded">
+                    <span className="block h-1.5 rounded bg-[#1d4434]" style={{ width: `${v * 10}%` }} />
+                  </span>
+                  <span className="font-mono w-6 text-right">{v.toFixed(1)}</span>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* 快捷跳转与系统比价联动 */}
+          <p className="text-xs text-[#36493b] leading-relaxed mb-3 bg-[#edf1e8] p-2 rounded border-l-2 border-[#1d4434]">
+            {item.bottom_line}
+          </p>
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowMore(!showMore)}
+            className="w-full text-left text-xs font-semibold text-[#1d4434] py-1 flex items-center justify-between border-t border-[#eceee5] pt-2 mb-2"
+          >
+            <span>优缺点 · 差价分析 · 国内口碑</span>
+            <span className="text-[10px] text-[#687366]">{showMore ? "收起 ▲" : "展开 ▼"}</span>
+          </button>
+
+          {showMore && (
+            <div className="text-xs text-[#4b5847] leading-relaxed p-2.5 rounded bg-[#f3f6ee] border border-[#dce3d2] mb-3 space-y-2">
+              <div>
+                <p className="font-medium text-[#2e5631]">👍 优点（测评原文）</p>
+                <ul className="list-disc pl-4">
+                  {item.pros.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-[#9a3b22]">👎 缺点（测评原文）</p>
+                <ul className="list-disc pl-4">
+                  {item.cons.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+              {item.authorities.some((a) => a.quote) && (
+                <div>
+                  <p className="font-medium text-[#1d4434]">📝 测评结论</p>
+                  {item.authorities
+                    .filter((a) => a.quote)
+                    .map((a, i) => (
+                      <p key={i} className="italic">
+                        <strong className="not-italic">{a.source}：</strong>“{a.quote}”
+                      </p>
+                    ))}
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-[#1d4434]">💡 差价分析</p>
+                <p>{item.gap_analysis}</p>
+              </div>
+              {item.cn_links && item.cn_links.length > 0 && (
+                <div>
+                  <p className="font-medium text-[#1d4434]">🇨🇳 国内口碑 / 购买</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {item.cn_links.map((l) => (
+                      <a
+                        key={l.label}
+                        href={l.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-0.5 rounded bg-white border border-[#dce0d4] hover:bg-[#f2f4ec]"
+                      >
+                        {l.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {item.buy_links && item.buy_links.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {item.buy_links.map((l, i) => (
+                    <a
+                      key={`${l.label}-${i}`}
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-0.5 rounded bg-white border border-[#dce0d4] hover:bg-[#f2f4ec] text-[#2b4c68]"
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 pt-1 border-t border-[#eceee5]">
             <Link
-              href={`/variants?q=${encodeURIComponent(item.name_cn.split(" ")[1] || item.name.split(" ")[0])}`}
+              href={`/variants?q=${encodeURIComponent(item.name)}`}
               className="flex-1 btn-ghost text-xs py-1.5 rounded text-center font-medium"
             >
               查系统到手价
             </Link>
-            <Link
-              href={`/watch`}
-              className="flex-1 btn-ghost text-xs py-1.5 rounded text-center font-medium"
-            >
+            <Link href={`/watch`} className="flex-1 btn-ghost text-xs py-1.5 rounded text-center font-medium">
               加入降价监控
             </Link>
           </div>

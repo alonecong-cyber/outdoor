@@ -21,6 +21,19 @@ class CompareRequest(BaseModel):
     ids: list[str]
 
 
+class BrandStat(BaseModel):
+    brand: str
+    brand_name: str
+    country: str
+    count: int
+    categories: list[str]
+
+
+class SourceStat(BaseModel):
+    source: str
+    count: int
+
+
 @router.get("/categories", response_model=list[CategoryMeta])
 def list_categories() -> list[CategoryMeta]:
     """获取所有权威榜单评测分类与各价位段数量统计。"""
@@ -35,8 +48,11 @@ def list_rankings(
         None, description="权威来源，如 OutdoorGearLab / Switchback / SMZDM 等"
     ),
     brand: str | None = None,
+    gender: str | None = Query(None, description="men / women / unisex"),
     q: str | None = None,
-    sort: str | None = Query(None, description="排序：price_asc / price_desc / score_desc"),
+    sort: str | None = Query(
+        None, description="排序：price_asc / price_desc / score_desc / value_desc / awards_desc"
+    ),
 ) -> list[GearRankingItem]:
     """多维检索权威榜单与装备推荐库。"""
     results = list(RANKING_ITEMS)
@@ -59,6 +75,9 @@ def list_rankings(
         brand_clean = brand.strip().lower()
         results = [item for item in results if item.brand.lower() == brand_clean]
 
+    if gender:
+        results = [item for item in results if item.gender in (gender, "unisex")]
+
     if q and q.strip():
         term = q.strip().lower()
         results = [
@@ -70,6 +89,7 @@ def list_rankings(
             or term in item.category_name.lower()
             or term in item.specs.material.lower()
             or term in item.bottom_line.lower()
+            or term in item.brand.lower()
             or any(term in sc.lower() for sc in item.specs.scenarios)
         ]
 
@@ -78,9 +98,49 @@ def list_rankings(
     elif sort == "price_desc":
         results.sort(key=lambda x: x.price_guide.price_cents, reverse=True)
     elif sort == "score_desc":
-        results.sort(key=lambda x: x.rating_score, reverse=True)
+        results.sort(key=lambda x: (x.rating_score or 0, len(x.authorities)), reverse=True)
+    elif sort == "value_desc":
+        # 每百元得分（只对有实测分的产品有意义，无分的排后）
+        results.sort(
+            key=lambda x: (x.rating_score or 0) / max(x.price_guide.price_cents, 1), reverse=True
+        )
+    elif sort == "awards_desc":
+        results.sort(key=lambda x: (len(x.authorities), x.rating_score or 0), reverse=True)
 
     return results
+
+
+@router.get("/brands", response_model=list[BrandStat])
+def list_brands(category: GearCategory | None = None) -> list[BrandStat]:
+    """品牌列表（按收录产品数降序），可按品类过滤。"""
+    stats: dict[str, BrandStat] = {}
+    for item in RANKING_ITEMS:
+        if category and item.category != category:
+            continue
+        st = stats.setdefault(
+            item.brand,
+            BrandStat(
+                brand=item.brand,
+                brand_name=item.brand_name,
+                country=item.brand_country,
+                count=0,
+                categories=[],
+            ),
+        )
+        st.count += 1
+        if item.category_name not in st.categories:
+            st.categories.append(item.category_name)
+    return sorted(stats.values(), key=lambda s: (-s.count, s.brand))
+
+
+@router.get("/sources", response_model=list[SourceStat])
+def list_sources() -> list[SourceStat]:
+    """权威来源及其覆盖产品数。"""
+    counts: dict[str, int] = {}
+    for item in RANKING_ITEMS:
+        for src in {a.source for a in item.authorities}:
+            counts[src] = counts.get(src, 0) + 1
+    return [SourceStat(source=k, count=v) for k, v in sorted(counts.items(), key=lambda x: -x[1])]
 
 
 @router.get("/compare", response_model=CompareMatrixResponse)
@@ -131,35 +191,21 @@ def _build_comparison(ids: list[str]) -> CompareMatrixResponse:
     common_category = selected_items[0].category if is_same_category else None
     common_category_name = selected_items[0].category_name if is_same_category else "跨品类综合对比"
 
-    # 生成跨价位横向差价与边际效用总结
-    tiers_present = {it.price_tier for it in selected_items}
-    if len(tiers_present) > 1 and is_same_category:
-        sorted_by_price = sorted(selected_items, key=lambda x: x.price_guide.price_cents)
-        lowest = sorted_by_price[0]
-        highest = sorted_by_price[-1]
-        gap_summary = (
-            f"【差价与选购结论】：从「{lowest.name_cn}」({lowest.price_guide.deal_cny}) "
-            f"到「{highest.name_cn}」({highest.price_guide.deal_cny})，"
-            f"差价主要体现在核心面料膜层科技、物理抗撕裂 D 数与极端耐候寿命上。"
-            f"日常 80% 通勤与轻度徒步建议选性价比入门/中端款；"
-            f"若涉及高海拔暴风雪或长距离多日穿越，旗舰款安全边际无可替代。"
-        )
-    else:
-        gap_summary = "本组对比专注于相同梯队在材质剪裁、重量控制与权威机构实测优缺点上的细微取舍。"
+    gap_summary = _gap_summary(selected_items, is_same_category)
 
     attributes = [
-        "高清大图",
-        "指导价 / 国内大促到手价",
-        "海淘原价 / 折算落地到手价",
+        "产品图",
+        "美标价 / 人民币折算",
+        "海淘落地估算",
         "价位梯队",
-        "权威测评荣誉与得分",
-        "核心材质与面料科技",
-        "防水与透气等级",
-        "重量与收纳特性",
-        "适用场景定位",
-        "实测优势 (Pros)",
-        "实测短板 (Cons)",
-        "差价买到了什么 (Gap Analysis)",
+        "权威榜单排名与得分",
+        "分项实测评分",
+        "材质",
+        "重量",
+        "完整规格",
+        "实测优点 (Pros)",
+        "实测缺点 (Cons)",
+        "差价分析",
     ]
 
     return CompareMatrixResponse(
@@ -169,3 +215,34 @@ def _build_comparison(ids: list[str]) -> CompareMatrixResponse:
         category_name=common_category_name,
         gap_summary=gap_summary,
     )
+
+
+def _gap_summary(items: list[GearRankingItem], same_category: bool) -> str:
+    """基于真实数据（价格、OGL 总分、分项分）生成对比结论。"""
+    by_price = sorted(items, key=lambda x: x.price_guide.price_cents)
+    lo, hi = by_price[0], by_price[-1]
+    parts: list[str] = []
+    if hi.price_guide.price_cents > lo.price_guide.price_cents:
+        diff = (hi.price_guide.price_cents - lo.price_guide.price_cents) / 100
+        parts.append(f"最贵的「{hi.name_cn}」比最便宜的「{lo.name_cn}」海淘落地约贵 ¥{diff:,.0f}")
+    scored = [it for it in items if it.rating_score]
+    if len(scored) >= 2:
+        best = max(scored, key=lambda x: x.rating_score or 0)
+        value = max(scored, key=lambda x: (x.rating_score or 0) / x.price_guide.price_cents)
+        parts.append(f"OGL 实测最高分：「{best.name_cn}」{best.rating_score} 分")
+        parts.append(f"性价比（每元得分）最高：「{value.name_cn}」")
+        if same_category:
+            dims: set[str] = set()
+            for it in scored:
+                dims.update(it.sub_scores)
+            wins = []
+            for dim in sorted(dims):
+                cands = [it for it in scored if dim in it.sub_scores]
+                if len(cands) >= 2:
+                    w = max(cands, key=lambda x: x.sub_scores[dim])
+                    wins.append(f"{dim}→{w.name}")
+            if wins:
+                parts.append("分项胜出：" + "，".join(wins))
+    if not parts:
+        return "所选产品价格与评分接近，建议按版型、重量和使用场景取舍。"
+    return "；".join(parts) + "。"

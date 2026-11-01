@@ -2,6 +2,7 @@
 
 import type { GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
+import { GearImage } from "@/components/rankings/RankingCard";
 
 export function CompareDrawer({
   selectedItems,
@@ -39,17 +40,13 @@ export function CompareDrawer({
                 key={item.id}
                 className="relative flex items-center gap-1.5 p-1 pr-2 rounded bg-[#f5f4ee] border border-[#dce0d4] flex-shrink-0"
               >
-                <img
-                  src={item.image}
-                  alt={item.name_cn}
-                  className="w-8 h-8 object-contain rounded bg-white p-0.5"
-                />
+                <GearImage item={item} className="w-8 h-8 object-contain rounded bg-white" />
                 <div className="text-left max-w-[100px] truncate">
                   <p className="text-[11px] font-semibold text-[#213b2e] truncate">
                     {item.name_cn}
                   </p>
                   <p className="text-[9px] text-[#be482b] font-mono font-bold truncate">
-                    {item.price_guide.deal_cny}
+                    {item.price_guide.overseas_usd}
                   </p>
                 </div>
                 <button

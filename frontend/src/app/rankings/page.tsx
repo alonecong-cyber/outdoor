@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
+import type { GearRankingItem } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { api, type CompareMatrixResponse } from "@/lib/api";
 import { Icon } from "@/components/Icon";
@@ -15,7 +16,12 @@ export default function RankingsPage() {
   const [source, setSource] = useState<string>("all");
   const [query, setQuery] = useState<string>("");
   const [sort, setSort] = useState<string>("score_desc");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [gender, setGender] = useState<string>("all");
+  const [brand, setBrand] = useState<string>("all");
+  const [visible, setVisible] = useState<number>(24);
+  const deferredQuery = useDeferredValue(query);
+  const [selected, setSelected] = useState<GearRankingItem[]>([]);
+  const selectedIds = selected.map((it) => it.id);
   const [compareMatrix, setCompareMatrix] = useState<CompareMatrixResponse | null>(null);
   const [isComparing, setIsComparing] = useState<boolean>(false);
 
@@ -28,41 +34,48 @@ export default function RankingsPage() {
 
   // 获取榜单装备列表
   const rankingsQuery = useQuery({
-    queryKey: ["rankings", category, tier, source, query, sort],
+    queryKey: ["rankings", category, tier, source, deferredQuery, sort, gender, brand],
     queryFn: () =>
       api.rankings({
         category: category === "all" ? undefined : category,
         tier: tier === "all" ? undefined : tier,
         source: source === "all" ? undefined : source,
-        q: query.trim() || undefined,
+        gender: gender === "all" ? undefined : gender,
+        brand: brand === "all" ? undefined : brand,
+        q: deferredQuery.trim() || undefined,
         sort: sort || undefined,
       }),
     staleTime: 30_000,
   });
 
+  const brandsQuery = useQuery({
+    queryKey: ["rankingBrands", category],
+    queryFn: () => api.rankingBrands(category === "all" ? undefined : category),
+    staleTime: 60_000,
+  });
+
   const items = rankingsQuery.data ?? [];
 
-  // 映射已选条目
-  const selectedItems = useMemo(
-    () => items.filter((it) => selectedIds.includes(it.id)),
-    [items, selectedIds]
-  );
+  // 已选条目单独保存，切换品类/筛选后仍保留（可跨品类对比）
+  const selectedItems = selected;
+  const shownItems = useMemo(() => items.slice(0, visible), [items, visible]);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((i) => i !== id);
+    setSelected((prev) => {
+      if (prev.some((it) => it.id === id)) {
+        return prev.filter((it) => it.id !== id);
       }
       if (prev.length >= 4) {
         alert("最多同时选择 4 款装备进行横向对比");
         return prev;
       }
-      return [...prev, id];
+      const found = items.find((it) => it.id === id);
+      return found ? [...prev, found] : prev;
     });
   };
 
   const clearSelection = () => {
-    setSelectedIds([]);
+    setSelected([]);
   };
 
   // 触发横向对比
@@ -88,28 +101,31 @@ export default function RankingsPage() {
     const midItem = items.find((it) => it.price_tier === "mid");
     const flagshipItem = items.find((it) => it.price_tier === "flagship");
 
-    const picked = [budgetItem, midItem, flagshipItem].filter(Boolean).map((it) => it!.id);
+    const pickedItems = [budgetItem, midItem, flagshipItem].filter(Boolean) as GearRankingItem[];
+    const picked = pickedItems.map((it) => it.id);
     if (picked.length >= 2) {
-      setSelectedIds(picked);
+      setSelected(pickedItems);
       void handleStartCompare(picked);
     }
   };
 
   const sourcesList = [
-    { id: "all", name: "全部机构" },
-    { id: "OutdoorGearLab", name: "OutdoorGearLab (美)" },
-    { id: "Switchback", name: "Switchback Travel (美)" },
-    { id: "CleverHiker", name: "CleverHiker (轻量)" },
-    { id: "RunRepeat", name: "RunRepeat (鞋靴实验室)" },
-    { id: "SMZDM", name: "什么值得买 (国内好价)" },
-    { id: "8264", name: "8264 (国内驴友口碑)" },
+    { id: "all", name: "全部来源" },
+    { id: "OutdoorGearLab", name: "OutdoorGearLab（实验室打分）" },
+    { id: "Switchback", name: "Switchback Travel（编辑榜单）" },
   ];
 
   const priceTiers = [
-    { id: "all", name: "全部价位段" },
-    { id: "budget", name: "百元入门平替 (<¥1,000)" },
-    { id: "mid", name: "千元进阶主力 (¥1,000~¥2,500)" },
-    { id: "flagship", name: "顶级专业旗舰 (¥2,500+)" },
+    { id: "all", name: "全部价位" },
+    { id: "budget", name: "入门性价比（本品类低价 1/3）" },
+    { id: "mid", name: "进阶主力（中间 1/3）" },
+    { id: "flagship", name: "顶级旗舰（高价 1/3）" },
+  ];
+
+  const genders = [
+    { id: "all", name: "全部" },
+    { id: "men", name: "男款" },
+    { id: "women", name: "女款" },
   ];
 
   return (
@@ -141,9 +157,9 @@ export default function RankingsPage() {
             <span>看懂差价买到了什么。</span>
           </h1>
           <p>
-            整合国外公认四大机构（OutdoorGearLab / Switchback / CleverHiker / RunRepeat）与国内真实实测，
+            数据来自 OutdoorGearLab 实验室打分 + Switchback Travel 编辑榜单，每款都可点回原文核对；
             <br className="hidden sm:inline" />
-            各价位段完整阶梯覆盖，支持多款装备同屏参数与差价深度对比。
+            {categoriesQuery.data ? `${categoriesQuery.data.length} 个品类 · ${categoriesQuery.data.reduce((n, c) => n + c.total_count, 0)} 款装备 · ${brandsQuery.data && category === "all" ? brandsQuery.data.length + " 个品牌 · " : ""}` : ""}国内口碑一键跳什么值得买 / 小红书 / B站。
           </p>
         </div>
 
@@ -151,7 +167,7 @@ export default function RankingsPage() {
           <span className="field-note">
             ALL TIERS<br />IN DEPTH.
           </span>
-          <p>百元入门 · 千元进阶 · 顶级旗舰</p>
+          <p>入门 · 进阶 · 旗舰</p>
           <button
             type="button"
             onClick={handleQuickTierCompare}
@@ -163,12 +179,12 @@ export default function RankingsPage() {
         </div>
       </section>
 
-      {/* 10 大核心品类导航横向 Tab */}
+      {/* 品类导航横向 Tab */}
       <nav className="mb-6 overflow-x-auto pb-2 scrollbar-none" aria-label="装备品类分类">
         <div className="flex gap-2 min-w-max">
           <button
             type="button"
-            onClick={() => setCategory("all")}
+            onClick={() => { setCategory("all"); setBrand("all"); setVisible(24); }}
             className={`px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
               category === "all"
                 ? "bg-[#1d4434] text-white shadow-sm"
@@ -185,7 +201,7 @@ export default function RankingsPage() {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setCategory(cat.id)}
+                onClick={() => { setCategory(cat.id); setBrand("all"); setVisible(24); }}
                 className={`px-3.5 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   active
                     ? "bg-[#1d4434] text-white shadow-sm"
@@ -234,6 +250,40 @@ export default function RankingsPage() {
           </div>
         </div>
 
+        {/* 性别与品牌 */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold text-[#687366] font-mono">款式:</span>
+          {genders.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setGender(g.id)}
+              className={`px-2.5 py-1 rounded text-xs transition-all ${
+                gender === g.id
+                  ? "bg-[#1d4434] text-white font-semibold"
+                  : "bg-[#f5f4ee] text-[#556251] hover:bg-[#eaece2] border border-[#dce0d4]"
+              }`}
+            >
+              {g.name}
+            </button>
+          ))}
+          <span className="text-[11px] font-bold text-[#687366] font-mono ml-3">品牌:</span>
+          <select
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            className="field text-xs py-1 px-2 min-h-[32px] bg-white border-[#dce0d4]"
+            style={{ width: "auto", maxWidth: 280 }}
+            aria-label="品牌筛选"
+          >
+            <option value="all">全部品牌（{brandsQuery.data?.length ?? 0}）</option>
+            {(brandsQuery.data ?? []).map((b) => (
+              <option key={b.brand} value={b.brand}>
+                {b.brand_name}（{b.count}）
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* 权威机构与检索/排序控制栏 */}
         <div className="pt-3 border-t border-[#eceee5] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* 权威测评来源 */}
@@ -262,13 +312,14 @@ export default function RankingsPage() {
 
           {/* 搜索与排序 */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="relative flex-1 sm:w-56">
+            <div className="relative w-48 sm:w-60">
               <input
                 type="text"
-                placeholder="搜索装备名、面料、场景..."
+                placeholder="搜品牌/型号，如 始祖鸟、Speedgoat"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="field text-xs pl-8 pr-3 py-1.5 min-h-[36px]"
+                style={{ paddingLeft: 32 }}
               />
               <span className="absolute left-2.5 top-2.5 text-[#889280]">
                 <Icon name="search" className="w-3.5 h-3.5" />
@@ -278,12 +329,15 @@ export default function RankingsPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              className="field text-xs py-1.5 px-2 min-h-[36px] w-auto bg-white border-[#dce0d4]"
+              className="field text-xs py-1.5 px-2 min-h-[36px] bg-white border-[#dce0d4]"
+              style={{ width: "auto" }}
               aria-label="排序方式"
             >
-              <option value="score_desc">综合评分最高</option>
-              <option value="price_asc">建议价格: 从低到高</option>
-              <option value="price_desc">建议价格: 从高到低</option>
+              <option value="score_desc">实测得分最高</option>
+              <option value="value_desc">性价比（每元得分）</option>
+              <option value="awards_desc">上榜次数最多</option>
+              <option value="price_asc">价格: 从低到高</option>
+              <option value="price_desc">价格: 从高到低</option>
             </select>
           </div>
         </div>
@@ -319,7 +373,7 @@ export default function RankingsPage() {
         </div>
       ) : items.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {items.map((item) => (
+          {shownItems.map((item) => (
             <RankingCard
               key={item.id}
               item={item}
@@ -327,6 +381,13 @@ export default function RankingsPage() {
               onToggleSelect={toggleSelect}
             />
           ))}
+          {items.length > visible && (
+            <div className="md:col-span-2 lg:col-span-3 text-center">
+              <button type="button" onClick={() => setVisible((v) => v + 24)} className="btn-ghost text-xs px-6 py-2">
+                加载更多（还有 {items.length - visible} 款）
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card p-12 text-center bg-white border border-[#dce0d4] rounded-lg">
@@ -341,6 +402,8 @@ export default function RankingsPage() {
               setTier("all");
               setSource("all");
               setQuery("");
+              setGender("all");
+              setBrand("all");
             }}
             className="btn-primary text-xs"
           >

@@ -1,17 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { CompareMatrixResponse, GearRankingItem } from "@/lib/api";
 import { Icon } from "@/components/Icon";
+import { GearImage, rankLabel } from "@/components/rankings/RankingCard";
 
-export function CompareModal({
-  matrix,
-  onClose,
-}: {
-  matrix: CompareMatrixResponse | null;
-  onClose: () => void;
-}) {
+type Row = { label: string; render: (it: GearRankingItem) => ReactNode; best?: (it: GearRankingItem) => number | null; higherIsBetter?: boolean };
+
+/** 横向对比表：行=维度，列=产品；数值维度自动高亮最优。 */
+export function CompareModal({ matrix, onClose }: { matrix: CompareMatrixResponse | null; onClose: () => void }) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -21,241 +18,154 @@ export function CompareModal({
   }, [onClose]);
 
   if (!matrix || matrix.items.length === 0) return null;
-
   const { items, gap_summary, category_name } = matrix;
 
-  const tierColors: Record<string, { bg: string; text: string; border: string }> = {
-    budget: { bg: "#e8eee2", text: "#2e5631", border: "#cbd8bf" },
-    mid: { bg: "#e6eef5", text: "#2b4c68", border: "#bed0e2" },
-    flagship: { bg: "#f7eee3", text: "#7e4a1a", border: "#e8cfb5" },
+  const subKeys = Array.from(new Set(items.flatMap((it) => Object.keys(it.sub_scores ?? {}))));
+  const specKeys = Array.from(new Set(items.flatMap((it) => Object.keys(it.spec_table ?? {}))));
+
+  const rows: Row[] = [
+    { label: "品牌 / 产地", render: (it) => `${it.brand_name}${it.brand_country ? ` · ${it.brand_country}` : ""}` },
+    { label: "款式", render: (it) => `${it.gender_name ?? ""} · ${it.price_tier_name}` },
+    {
+      label: "美标价",
+      render: (it) => (
+        <span className="font-mono">
+          {it.price_guide.overseas_usd} <span className="text-[#687366]">{it.price_guide.deal_cny}</span>
+        </span>
+      ),
+    },
+    {
+      label: "海淘落地估算",
+      render: (it) => <span className="font-mono font-semibold">{it.price_guide.overseas_landed_cny}</span>,
+      best: (it) => it.price_guide.price_cents,
+      higherIsBetter: false,
+    },
+    {
+      label: "OGL 实测总分",
+      render: (it) => (it.rating_score ? <span className="font-mono font-bold">{it.rating_score}</span> : <span className="text-[#889280]">无打分</span>),
+      best: (it) => it.rating_score ?? null,
+      higherIsBetter: true,
+    },
+    {
+      label: "每千元得分",
+      render: (it) => (it.rating_score ? <span className="font-mono">{((it.rating_score / it.price_guide.price_cents) * 100000).toFixed(1)}</span> : "—"),
+      best: (it) => (it.rating_score ? it.rating_score / it.price_guide.price_cents : null),
+      higherIsBetter: true,
+    },
+    {
+      label: "权威榜单",
+      render: (it) => (
+        <ul className="space-y-1">
+          {it.authorities.map((a, i) => (
+            <li key={i}>
+              <a href={a.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                <strong>{a.source}</strong> <span className="font-mono">{rankLabel(a)}</span> {a.badge}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ),
+    },
+    ...subKeys.map<Row>((k) => ({
+      label: `分项：${k}`,
+      render: (it) => {
+        const v = it.sub_scores?.[k];
+        return v == null ? "—" : (
+          <span className="flex items-center gap-2">
+            <span className="flex-1 h-1.5 bg-[#eceee5] rounded">
+              <span className="block h-1.5 rounded bg-[#1d4434]" style={{ width: `${v * 10}%` }} />
+            </span>
+            <span className="font-mono">{v.toFixed(1)}</span>
+          </span>
+        );
+      },
+      best: (it) => it.sub_scores?.[k] ?? null,
+      higherIsBetter: true,
+    })),
+    { label: "重量", render: (it) => it.specs.weight || "—" },
+    ...specKeys.map<Row>((k) => ({ label: k, render: (it) => it.spec_table?.[k] ?? "—" })),
+    { label: "优点", render: (it) => <ul className="list-disc pl-4">{it.pros.map((p) => <li key={p}>{p}</li>)}</ul> },
+    { label: "缺点", render: (it) => <ul className="list-disc pl-4">{it.cons.map((p) => <li key={p}>{p}</li>)}</ul> },
+    { label: "差价分析", render: (it) => it.gap_analysis },
+    {
+      label: "国内口碑",
+      render: (it) => (
+        <span className="flex flex-wrap gap-1">
+          {(it.cn_links ?? []).map((l) => (
+            <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer" className="px-1.5 py-0.5 rounded border border-[#dce0d4] bg-white hover:bg-[#f2f4ec]">
+              {l.label}
+            </a>
+          ))}
+        </span>
+      ),
+    },
+  ];
+
+  const bestIds = (row: Row): Set<string> => {
+    if (!row.best) return new Set();
+    const vals = items.map((it) => [it.id, row.best!(it)] as const).filter(([, v]) => v != null) as [string, number][];
+    if (vals.length < 2) return new Set();
+    const target = row.higherIsBetter ? Math.max(...vals.map(([, v]) => v)) : Math.min(...vals.map(([, v]) => v));
+    return new Set(vals.filter(([, v]) => v === target).map(([id]) => id));
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="compare-modal-title"
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="compare-modal-title">
       <div className="bg-[#fffefa] w-full max-w-7xl max-h-[92vh] rounded-xl shadow-2xl flex flex-col border border-[#dce0d4] overflow-hidden">
-        {/* 顶部标题栏 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#eceee5] bg-[#f8f7f2]">
           <div>
-            <div className="flex items-center gap-2">
+            <h2 id="compare-modal-title" className="text-lg font-bold text-[#213b2e] flex items-center gap-2">
               <span className="p-1.5 rounded-full bg-[#1d4434] text-white">
                 <Icon name="compare" className="w-4 h-4" />
               </span>
-              <h2 id="compare-modal-title" className="text-lg font-bold text-[#213b2e]">
-                装备多维横向横评对比 · {category_name}
-              </h2>
-            </div>
-            <p className="text-xs text-[#687366] font-mono mt-0.5">
-              已选 {items.length} 款装备同屏 PK（支持价格、面料、防护、权威测评与差价解析）
-            </p>
+              横向对比 · {category_name}
+            </h2>
+            <p className="text-xs text-[#687366] font-mono mt-0.5">已选 {items.length} 款 · 绿色高亮为该维度最优</p>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 text-[#687366] hover:text-[#213b2e] hover:bg-[#eaece2] rounded-full transition-colors"
-            aria-label="关闭对比弹窗"
-          >
+          <button type="button" onClick={onClose} className="p-2 text-[#687366] hover:text-[#213b2e] hover:bg-[#eaece2] rounded-full" aria-label="关闭对比弹窗">
             <Icon name="close" className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 跨价位差价核心分析 Callout */}
         {gap_summary && (
-          <div className="px-6 py-3 bg-[#f0f4ea] border-b border-[#d8e0ce] text-xs text-[#2c4731] leading-relaxed flex items-start gap-2.5">
-            <span className="text-base leading-none">💡</span>
-            <div>
-              <strong className="font-semibold block mb-0.5">【跨价位差价核心总结与选购建议】：</strong>
-              <span>{gap_summary}</span>
-            </div>
+          <div className="px-6 py-3 bg-[#f0f4ea] border-b border-[#d8e0ce] text-xs text-[#2c4731] leading-relaxed">
+            <strong className="font-semibold">💡 对比结论：</strong>
+            {gap_summary}
           </div>
         )}
 
-        {/* 对比主体表格内容（横向滚动） */}
-        <div className="flex-1 overflow-auto p-4 sm:p-6">
-          <div
-            className="grid gap-4 min-w-[720px]"
-            style={{
-              gridTemplateColumns: `repeat(${items.length}, minmax(240px, 1fr))`,
-            }}
-          >
-            {items.map((item) => {
-              const currentTier = tierColors[item.price_tier] || tierColors.budget;
-
-              return (
-                <div
-                  key={item.id}
-                  className="card p-4 flex flex-col justify-between border border-[#dce0d4] bg-white rounded-lg shadow-sm"
-                >
-                  <div>
-                    {/* 产品图片 */}
-                    <div className="w-full h-44 bg-[#fafaf6] rounded-md mb-3 flex items-center justify-center p-2 border border-[#eceee5] overflow-hidden">
-                      <img
-                        src={item.image}
-                        alt={item.name_cn}
-                        className="max-h-full max-w-full object-contain"
-                      />
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-xs text-[#36493b] border-collapse" style={{ minWidth: 200 + items.length * 220 }}>
+            <thead className="sticky top-0 z-10 bg-[#fffefa]">
+              <tr>
+                <th className="w-40 p-3 text-left text-[#687366] font-mono border-b border-[#eceee5]">维度</th>
+                {items.map((it) => (
+                  <th key={it.id} className="p-3 text-left align-top border-b border-[#eceee5]">
+                    <div className="relative w-full pt-[60%] bg-white rounded overflow-hidden mb-2">
+                      <GearImage item={it} className="absolute inset-0 w-full h-full object-contain" />
                     </div>
-
-                    {/* 梯队与评分 */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded"
-                        style={{
-                          backgroundColor: currentTier.bg,
-                          color: currentTier.text,
-                          border: `1px solid ${currentTier.border}`,
-                        }}
-                      >
-                        {item.price_tier_name}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-[#1d4434]">
-                        ★ {item.rating_score}分
-                      </span>
-                    </div>
-
-                    {/* 标题 */}
-                    <h3 className="font-bold text-base text-[#213b2e] leading-snug mb-0.5">
-                      {item.name_cn}
-                    </h3>
-                    <p className="text-[11px] text-[#687366] font-mono mb-3">
-                      {item.brand_name} · {item.name}
-                    </p>
-
-                    {/* 价格板块 */}
-                    <div className="p-3 bg-[#f5f4ee] rounded border border-[#e2e6d9] mb-4">
-                      <div className="flex items-baseline justify-between mb-1">
-                        <span className="text-[11px] text-[#687366]">券后到手价:</span>
-                        <span className="text-lg font-bold text-[#be482b] font-mono">
-                          {item.price_guide.deal_cny}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-[#889280] font-mono">
-                        <span>专柜原价:</span>
-                        <span className="line-through">{item.price_guide.msrp_cny}</span>
-                      </div>
-                      {item.price_guide.overseas_landed_cny && (
-                        <div className="flex items-center justify-between text-[11px] text-[#456d80] font-mono pt-1 mt-1 border-t border-[#e2e6d9]">
-                          <span>海淘预估落地:</span>
-                          <span className="font-semibold">{item.price_guide.overseas_landed_cny}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 权威榜单奖项 */}
-                    <div className="mb-4">
-                      <h4 className="text-[11px] font-bold text-[#687366] uppercase tracking-wider mb-1 font-mono">
-                        权威机构背书
-                      </h4>
-                      <div className="flex flex-col gap-1">
-                        {item.authorities.map((auth, aIdx) => (
-                          <div
-                            key={aIdx}
-                            className="text-xs p-1.5 rounded bg-[#f0f4ea] border border-[#d6decb] text-[#2c4731]"
-                          >
-                            <span className="font-bold">{auth.source}</span>: {auth.badge}
-                            <p className="text-[11px] text-[#4a634e] italic mt-0.5">
-                              “{auth.quote}”
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 核心面料与技术规格 */}
-                    <div className="mb-4 text-xs space-y-1.5 font-mono">
-                      <h4 className="text-[11px] font-bold text-[#687366] uppercase tracking-wider font-mono">
-                        核心规格参数
-                      </h4>
-                      <div className="p-2 bg-[#f9faf7] rounded border border-[#e8ebe0] space-y-1">
-                        <div>
-                          <span className="text-[#899181]">重量: </span>
-                          <strong className="text-[#213b2e]">{item.specs.weight}</strong>
-                        </div>
-                        <div>
-                          <span className="text-[#899181]">材质: </span>
-                          <span className="text-[#213b2e]">{item.specs.material}</span>
-                        </div>
-                        <div>
-                          <span className="text-[#899181]">防护: </span>
-                          <span className="text-[#213b2e]">{item.specs.waterproof_rating}</span>
-                        </div>
-                        <div>
-                          <span className="text-[#899181]">透湿: </span>
-                          <span className="text-[#213b2e]">{item.specs.breathability}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 适用场景 */}
-                    <div className="mb-4">
-                      <h4 className="text-[11px] font-bold text-[#687366] uppercase tracking-wider mb-1 font-mono">
-                        适用场景
-                      </h4>
-                      <div className="flex flex-wrap gap-1">
-                        {item.specs.scenarios.map((sc, sIdx) => (
-                          <span
-                            key={sIdx}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-[#eceee5] text-[#43523f]"
-                          >
-                            {sc}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 实测优缺点 */}
-                    <div className="grid grid-cols-1 gap-2 mb-4 text-xs">
-                      <div className="p-2 bg-[#f0f7ed] rounded border border-[#cfe1cc]">
-                        <strong className="text-[#2e6833] block mb-1">实测优点 (Pros):</strong>
-                        <ul className="list-disc list-inside text-[#335338] space-y-0.5 text-[11px]">
-                          {item.pros.map((p, pIdx) => (
-                            <li key={pIdx}>{p}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="p-2 bg-[#fbf3eb] rounded border border-[#e8d2c0]">
-                        <strong className="text-[#8b451f] block mb-1">注意事项 (Cons):</strong>
-                        <ul className="list-disc list-inside text-[#7d4829] space-y-0.5 text-[11px]">
-                          {item.cons.map((c, cIdx) => (
-                            <li key={cIdx}>{c}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* 差价买到了什么 */}
-                    <div className="p-2.5 bg-[#f4f7ef] rounded border-l-2 border-[#1d4434] text-xs text-[#304734] leading-relaxed mb-4">
-                      <strong className="block font-bold text-[#1d4434] mb-1">
-                        差价买到了什么？
-                      </strong>
-                      <p className="text-[11px]">{item.gap_analysis}</p>
-                    </div>
-                  </div>
-
-                  {/* 底部联动操作 */}
-                  <div className="flex gap-2 pt-2 border-t border-[#eceee5]">
-                    <Link
-                      href={`/variants?q=${encodeURIComponent(item.name_cn.split(" ")[1] || item.name.split(" ")[0])}`}
-                      className="flex-1 btn-primary text-xs py-2 text-center"
-                    >
-                      去查到手价
-                    </Link>
-                    <Link
-                      href="/watch"
-                      className="flex-1 btn-ghost text-xs py-2 text-center font-medium"
-                    >
-                      添加监控
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="font-semibold text-sm text-[#213b2e] leading-snug">{it.name_cn}</div>
+                    <div className="text-[11px] text-[#687366] font-mono font-normal">{it.name}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const best = bestIds(row);
+                return (
+                  <tr key={row.label} className="border-b border-[#f0f1ea] align-top">
+                    <th className="p-3 text-left font-medium text-[#687366] bg-[#fafaf6]">{row.label}</th>
+                    {items.map((it) => (
+                      <td key={it.id} className={`p-3 ${best.has(it.id) ? "bg-[#e3eedb] font-semibold" : ""}`}>
+                        {row.render(it)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
